@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - Workout Tracker</title>
+    <link href="https://cdn.jsdelivr.net/npm/daisyui@3.9.4/dist/full.css" rel="stylesheet" type="text/css" />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- CryptoJS for SHA-1 hashing -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+    <script>
+        function checkPassword() {
+            const password = document.getElementById('password').value;
+            const hashedPassword = CryptoJS.SHA1(password).toString();
+            console.log(hashedPassword);
+            
+            if (hashedPassword === 'fe9c99a2973d30122f69c28b6e760858a3eb2f60') {
+                // Set cookie to expire in 30 days
+                const expiryDate = new Date();
+                expiryDate.setDate(expiryDate.getDate() + 30);
+                document.cookie = `authenticated=true; expires=${expiryDate.toUTCString()}; path=/`;
+                
+                // Redirect to index page
+                window.location.href = 'index.html';
+            } else {
+                document.getElementById('error').classList.remove('hidden');
+            }
+        }
+    </script>
+</head>
+<body class="min-h-screen bg-base-200 flex items-center justify-center">
+    <div class="card w-96 bg-base-100 shadow-xl">
+        <div class="card-body">
+            <h2 class="card-title justify-center text-2xl font-bold mb-4">Workout Tracker Login</h2>
+            <div class="form-control">
+                <label class="label">
+                    <span class="label-text">Password</span>
+                </label>
+                <input type="password" id="password" class="input input-bordered" />
+            </div>
+            <div class="alert alert-error mt-4 hidden" id="error">
+                <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                <span>Invalid password</span>
+            </div>
+            <div class="card-actions justify-end mt-4">
+                <button class="btn btn-primary" onclick="checkPassword()">Login</button>
+            </div>
+        </div>
+    </div>
+</body>
+</html> 

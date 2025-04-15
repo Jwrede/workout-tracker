@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <!-- Mobile First -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Workout History</title>
+  <!-- PWA Support -->
+  <link rel="manifest" href="./manifest.json">
+  <meta name="theme-color" content="#570df8">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="apple-mobile-web-app-title" content="Workout Tracker">
+  <link rel="apple-touch-icon" href="./icons/icon-192x192.png">
+  <!-- Tailwind CSS and DaisyUI -->
+  <link href="https://cdn.jsdelivr.net/npm/daisyui@3.9.4/dist/full.css" rel="stylesheet" type="text/css" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Authentication -->
+  <script src="auth.js"></script>
+  <script>
+    // Register Service Worker
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js')
+          .then(registration => {
+            console.log('ServiceWorker registration successful');
+          })
+          .catch(err => {
+            console.log('ServiceWorker registration failed: ', err);
+          });
+      });
+    }
+
+    tailwind.config = {
+      theme: {
+        extend: {},
+      },
+      daisyui: {
+        themes: ["light", "dark", "cupcake", "bumblebee", "emerald", "corporate", "synthwave", "retro", "cyberpunk", "valentine", "halloween", "garden", "forest", "aqua", "lofi", "pastel", "fantasy", "wireframe", "black", "luxury", "dracula", "cmyk", "autumn", "business", "acid", "lemonade", "night", "coffee", "winter"],
+      },
+    }
+  </script>
+  <style>
+    /* Custom styles that can't be handled by DaisyUI */
+    .disabled { pointer-events: none; opacity: 0.5; }
+  </style>
+</head>
+<body class="min-h-screen bg-base-200">
+  <!-- Navigation Bar -->
+  <div class="navbar bg-primary text-primary-content fixed top-0 left-0 right-0 z-50">
+    <div class="navbar-start">
+      <div class="dropdown">
+        <label tabindex="0" class="btn btn-ghost lg:hidden">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h8m-8 6h16" />
+          </svg>
+        </label>
+        <ul tabindex="0" class="menu menu-sm dropdown-content mt-3 z-[100] p-2 shadow bg-primary rounded-box w-52">
+          <li><a href="index.html">Home</a></li>
+          <li><a href="workout-mode.html">Workout Mode</a></li>
+          <li><a href="workout-history.html" class="active">History</a></li>
+          <li><a href="statistics.html">Statistics</a></li>
+        </ul>
+      </div>
+      <a href="index.html" class="btn btn-ghost normal-case text-lg">Workout Tracker</a>
+    </div>
+    <div class="navbar-end hidden lg:flex">
+      <ul class="menu menu-horizontal px-1">
+        <li><a href="index.html">Home</a></li>
+        <li><a href="workout-mode.html">Workout Mode</a></li>
+        <li><a href="workout-history.html" class="active">History</a></li>
+        <li><a href="statistics.html">Statistics</a></li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- Main Container -->
+  <div class="container mx-auto p-4 mt-16">
+    <div class="card bg-base-100 shadow-xl">
+      <div class="card-body">
+        <h1 class="card-title text-2xl">Workout History</h1>
+        
+        <!-- Filter Controls -->
+        <div class="flex flex-wrap gap-4 mb-4">
+          <div class="form-control">
+            <label class="label">
+              <span class="label-text">Filter by Cycle:</span>
+              <select id="cycleFilter" class="select select-bordered select-sm">
+                <option value="all">All Cycles</option>
+              </select>
+            </label>
+          </div>
+          
+          <div class="form-control">
+            <label class="label">
+              <span class="label-text">Filter by Exercise:</span>
+              <select id="exerciseFilter" class="select select-bordered select-sm">
+                <option value="all">All Exercises</option>
+              </select>
+            </label>
+          </div>
+          
+          <div class="form-control w-full sm:w-auto">
+            <label class="label">
+              <span class="label-text">Date Range:</span>
+            </label>
+            <div class="flex flex-col sm:flex-row gap-2">
+              <input type="date" id="startDate" class="input input-bordered input-sm w-full sm:w-[160px]" placeholder="Start Date">
+              <input type="date" id="endDate" class="input input-bordered input-sm w-full sm:w-[160px]" placeholder="End Date">
+            </div>
+          </div>
+        </div>
+        
+        <!-- History Table -->
+        <div class="overflow-x-auto">
+          <table class="table table-zebra w-full">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Cycle</th>
+                <th>Day</th>
+                <th>Exercises</th>
+                <th>Duration</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="historyTableBody">
+              <!-- Table rows will be populated by JavaScript -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal for viewing workout details -->
+  <div id="workoutDetailsModal" class="modal">
+    <div class="modal-box">
+      <h3 class="font-bold text-lg">Workout Details</h3>
+      <div id="workoutDetailsContent"></div>
+      <div class="modal-action">
+        <button class="btn" onclick="document.getElementById('workoutDetailsModal').classList.remove('modal-open')">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal for editing workout -->
+  <div id="editWorkoutModal" class="modal">
+    <div class="modal-box max-w-4xl">
+      <h3 class="font-bold text-lg">Edit Workout</h3>
+      <form id="editWorkoutForm" class="mt-4">
+        <div class="form-control w-full">
+          <label class="label">
+            <span class="label-text">Date:</span>
+          </label>
+          <input type="date" id="editWorkoutDate" class="input input-bordered w-full" required>
+        </div>
+        
+        <div id="editExercisesContainer" class="mt-4 space-y-4">
+          <!-- Exercise entries will be added here -->
+        </div>
+
+        <div class="modal-action">
+          <button type="submit" class="btn btn-primary">Save Changes</button>
+          <button type="button" class="btn" onclick="document.getElementById('editWorkoutModal').classList.remove('modal-open')">Cancel</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    // Get completed workouts from localStorage
+    function getCompletedWorkouts() {
+      return JSON.parse(localStorage.getItem("completedWorkouts") || "[]");
+    }
+
+    // Save workouts to localStorage
+    function saveWorkouts(workouts) {
+      localStorage.setItem("completedWorkouts", JSON.stringify(workouts));
+    }
+
+    // Get workout cycles from localStorage
+    function getWorkoutCycles() {
+      return JSON.parse(localStorage.getItem("workoutCycles") || "[]");
+    }
+
+    // Format duration in milliseconds to a readable string
+    function formatDuration(ms) {
+      if (!ms || isNaN(ms) || ms <= 0) return "N/A";
+      const seconds = Math.floor(ms / 1000);
+      const minutes = Math.floor(seconds / 60);
+      const hours = Math.floor(minutes / 60);
+      if (hours > 0) {
+        return `${hours}h ${minutes % 60}m`;
+      }
+      return `${minutes}m ${seconds % 60}s`;
+    }
+
+    // Delete a workout
+    function deleteWorkout(date) {
+      if (!confirm("Are you sure you want to delete this workout? This action cannot be undone.")) {
+        return;
+      }
+
+      let workouts = getCompletedWorkouts();
+      workouts = workouts.filter(w => w.date !== date);
+      saveWorkouts(workouts);
+      filterWorkouts(); // Refresh the table
+    }
+
+    // Edit a workout
+    function editWorkout(date) {
+      const workout = getCompletedWorkouts().find(w => w.date === date);
+      if (!workout) return;
+
+      // Set the date
+      document.getElementById("editWorkoutDate").value = workout.date;
+
+      // Clear and populate the exercises container
+      const container = document.getElementById("editExercisesContainer");
+      container.innerHTML = "";
+
+      Object.entries(workout.details || {}).forEach(([exerciseName, details], index) => {
+        const exerciseDiv = document.createElement("div");
+        exerciseDiv.className = "card bg-base-200 p-4";
+        exerciseDiv.innerHTML = `
+          <div class="flex justify-between items-center mb-2">
+            <h4 class="font-bold">${exerciseName}</h4>
+            <button type="button" class="btn btn-ghost btn-sm btn-circle" onclick="removeExercise(this)">✕</button>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="table table-compact w-full">
+              <thead>
+                <tr>
+                  <th>Set</th>
+                  <th>Reps</th>
+                  <th>Weight</th>
+                  <th>Felt</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody class="exercise-sets" data-exercise="${exerciseName}">
+                ${details.actualReps.map((reps, i) => `
+                  <tr>
+                    <td>${i + 1}</td>
+                    <td><input type="number" class="input input-bordered input-sm w-20" value="${reps}" min="0"></td>
+                    <td><input type="number" class="input input-bordered input-sm w-20" value="${details.weights?.[i] || ''}" min="0" step="0.5"></td>
+                    <td>
+                      <select class="select select-bordered select-sm">
+                        <option value="Easy" ${details.felt?.[i] === 'Easy' ? 'selected' : ''}>Easy</option>
+                        <option value="Medium" ${details.felt?.[i] === 'Medium' ? 'selected' : ''}>Medium</option>
+                        <option value="Hard" ${details.felt?.[i] === 'Hard' ? 'selected' : ''}>Hard</option>
+                      </select>
+                    </td>
+                    <td>
+                      <button type="button" class="btn btn-ghost btn-xs" onclick="removeSet(this)">Remove</button>
+                    </td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+            <button type="button" class="btn btn-ghost btn-sm mt-2" onclick="addSet(this, '${exerciseName}')">Add Set</button>
+          </div>
+        `;
+        container.appendChild(exerciseDiv);
+      });
+
+      // Store the original date for reference
+      document.getElementById("editWorkoutForm").dataset.originalDate = date;
+
+      // Show the modal
+      document.getElementById("editWorkoutModal").classList.add("modal-open");
+    }
+
+    // Add a new set to an exercise
+    function addSet(button, exerciseName) {
+      const tbody = button.previousElementSibling.querySelector(`tbody[data-exercise="${exerciseName}"]`);
+      const setNumber = tbody.children.length + 1;
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td>${setNumber}</td>
+        <td><input type="number" class="input input-bordered input-sm w-20" min="0"></td>
+        <td><input type="number" class="input input-bordered input-sm w-20" min="0" step="0.5"></td>
+        <td>
+          <select class="select select-bordered select-sm">
+            <option value="Easy">Easy</option>
+            <option value="Medium">Medium</option>
+            <option value="Hard">Hard</option>
+          </select>
+        </td>
+        <td>
+          <button type="button" class="btn btn-ghost btn-xs" onclick="removeSet(this)">Remove</button>
+        </td>
+      `;
+      tbody.appendChild(tr);
+    }
+
+    // Remove a set
+    function removeSet(button) {
+      const tr = button.closest("tr");
+      const tbody = tr.parentElement;
+      tr.remove();
+      // Update set numbers
+      Array.from(tbody.children).forEach((row, index) => {
+        row.children[0].textContent = index + 1;
+      });
+    }
+
+    // Remove an exercise
+    function removeExercise(button) {
+      if (confirm("Are you sure you want to remove this exercise?")) {
+        button.closest(".card").remove();
+      }
+    }
+
+    // Populate the history table
+    function populateHistoryTable(workouts) {
+      const tableBody = document.getElementById("historyTableBody");
+      tableBody.innerHTML = "";
+      
+      workouts.forEach(workout => {
+        const cycle = getWorkoutCycles().find(c => c.id === workout.cycleId);
+        const day = cycle ? cycle.days[workout.dayIndex] : null;
+        
+        const row = document.createElement("tr");
+        row.innerHTML = `
+          <td>${workout.date}</td>
+          <td>${cycle ? cycle.cycleName : "Unknown Cycle"}</td>
+          <td>${day ? day.name : "Unknown Day"}</td>
+          <td>${Object.keys(workout.details || {}).join(", ")}</td>
+          <td>${formatDuration(workout.workoutDuration)}</td>
+          <td>
+            <div class="flex gap-2">
+              <button class="btn btn-sm" onclick="viewWorkoutDetails('${workout.date}')">View</button>
+              <button class="btn btn-sm btn-primary" onclick="editWorkout('${workout.date}')">Edit</button>
+              <button class="btn btn-sm btn-error" onclick="deleteWorkout('${workout.date}')">Delete</button>
+            </div>
+          </td>
+        `;
+        tableBody.appendChild(row);
+      });
+    }
+
+    // Handle edit form submission
+    document.getElementById("editWorkoutForm").addEventListener("submit", function(e) {
+      e.preventDefault();
+      
+      const originalDate = this.dataset.originalDate;
+      const newDate = document.getElementById("editWorkoutDate").value;
+      
+      // Get all workouts
+      let workouts = getCompletedWorkouts();
+      const workoutIndex = workouts.findIndex(w => w.date === originalDate);
+      if (workoutIndex === -1) return;
+      
+      // Create updated workout object
+      const updatedWorkout = { ...workouts[workoutIndex] };
+      updatedWorkout.date = newDate;
+      updatedWorkout.details = {};
+      
+      // Collect exercise data
+      document.querySelectorAll("#editExercisesContainer .card").forEach(card => {
+        const exerciseName = card.querySelector("h4").textContent;
+        const sets = card.querySelectorAll("tbody tr");
+        
+        const exerciseData = {
+          actualReps: [],
+          weights: [],
+          felt: []
+        };
+        
+        sets.forEach(set => {
+          const inputs = set.querySelectorAll("input, select");
+          exerciseData.actualReps.push(inputs[0].value);
+          exerciseData.weights.push(inputs[1].value);
+          exerciseData.felt.push(inputs[2].value);
+        });
+        
+        updatedWorkout.details[exerciseName] = exerciseData;
+      });
+      
+      // Update the workout
+      workouts[workoutIndex] = updatedWorkout;
+      saveWorkouts(workouts);
+      
+      // Close modal and refresh table
+      document.getElementById("editWorkoutModal").classList.remove("modal-open");
+      filterWorkouts();
+    });
+
+    // View workout details in a modal
+    function viewWorkoutDetails(date) {
+      const workout = getCompletedWorkouts().find(w => w.date === date);
+      if (!workout) return;
+      
+      const cycle = getWorkoutCycles().find(c => c.id === workout.cycleId);
+      const day = cycle ? cycle.days[workout.dayIndex] : null;
+      
+      let detailsHtml = `
+        <div class="mb-4">
+          <p><strong>Date:</strong> ${workout.date}</p>
+          <p><strong>Cycle:</strong> ${cycle ? cycle.cycleName : "Unknown Cycle"}</p>
+          <p><strong>Day:</strong> ${day ? day.name : "Unknown Day"}</p>
+          <p><strong>Duration:</strong> ${formatDuration(workout.workoutDuration)}</p>
+        </div>
+        <div class="divider"></div>
+        <div class="space-y-4">
+      `;
+      
+      // Add exercise details
+      Object.entries(workout.details || {}).forEach(([exerciseName, details]) => {
+        detailsHtml += `
+          <div class="card bg-base-200 p-4">
+            <h4 class="font-bold">${exerciseName}</h4>
+            <div class="overflow-x-auto">
+              <table class="table table-zebra w-full">
+                <thead>
+                  <tr>
+                    <th>Set</th>
+                    <th>Reps</th>
+                    <th>Weight</th>
+                    <th>Felt</th>
+                  </tr>
+                </thead>
+                <tbody>
+        `;
+        
+        for (let i = 0; i < details.actualReps.length; i++) {
+          detailsHtml += `
+            <tr>
+              <td>${i + 1}</td>
+              <td>${details.actualReps[i]}</td>
+              <td>${details.weights ? details.weights[i] : "N/A"}</td>
+              <td>${details.felt ? details.felt[i] : "N/A"}</td>
+            </tr>
+          `;
+        }
+        
+        detailsHtml += `
+                </tbody>
+              </table>
+            </div>
+          </div>
+        `;
+      });
+      
+      detailsHtml += "</div>";
+      
+      document.getElementById("workoutDetailsContent").innerHTML = detailsHtml;
+      document.getElementById("workoutDetailsModal").classList.add("modal-open");
+    }
+
+    // Populate filter dropdowns
+    function populateFilters() {
+      const cycles = getWorkoutCycles();
+      const cycleFilter = document.getElementById("cycleFilter");
+      const exerciseFilter = document.getElementById("exerciseFilter");
+      
+      // Populate cycle filter
+      cycles.forEach(cycle => {
+        const option = document.createElement("option");
+        option.value = cycle.id;
+        option.textContent = cycle.cycleName || "Unnamed Cycle";
+        cycleFilter.appendChild(option);
+      });
+      
+      // Get unique exercises from all workouts
+      const workouts = getCompletedWorkouts();
+      const exercises = new Set();
+      workouts.forEach(workout => {
+        Object.keys(workout.details || {}).forEach(exercise => {
+          exercises.add(exercise);
+        });
+      });
+      
+      // Populate exercise filter
+      exercises.forEach(exercise => {
+        const option = document.createElement("option");
+        option.value = exercise;
+        option.textContent = exercise;
+        exerciseFilter.appendChild(option);
+      });
+    }
+
+    // Filter workouts based on selected criteria
+    function filterWorkouts() {
+      const cycleId = document.getElementById("cycleFilter").value;
+      const exercise = document.getElementById("exerciseFilter").value;
+      const startDate = document.getElementById("startDate").value;
+      const endDate = document.getElementById("endDate").value;
+      
+      let workouts = getCompletedWorkouts();
+      
+      // Apply filters
+      if (cycleId !== "all") {
+        workouts = workouts.filter(w => w.cycleId === cycleId);
+      }
+      
+      if (exercise !== "all") {
+        workouts = workouts.filter(w => w.details && w.details[exercise]);
+      }
+      
+      if (startDate) {
+        workouts = workouts.filter(w => w.date >= startDate);
+      }
+      
+      if (endDate) {
+        workouts = workouts.filter(w => w.date <= endDate);
+      }
+      
+      // Sort by date (newest first)
+      workouts.sort((a, b) => new Date(b.date) - new Date(a.date));
+      
+      populateHistoryTable(workouts);
+    }
+
+    // Initialize the page
+    document.addEventListener("DOMContentLoaded", () => {
+      populateFilters();
+      filterWorkouts();
+      
+      // Add event listeners for filters
+      document.getElementById("cycleFilter").addEventListener("change", filterWorkouts);
+      document.getElementById("exerciseFilter").addEventListener("change", filterWorkouts);
+      document.getElementById("startDate").addEventListener("change", filterWorkouts);
+      document.getElementById("endDate").addEventListener("change", filterWorkouts);
+    });
+  </script>
+</body>
+</html>

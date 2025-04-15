@@ -1,0 +1,872 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <!-- Mobile First -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Workout Mode</title>
+  <!-- PWA Support -->
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#570df8">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="apple-mobile-web-app-title" content="Workout Tracker">
+  <link rel="apple-touch-icon" href="/icons/icon-192x192.png">
+  <!-- Tailwind CSS and DaisyUI -->
+  <link href="https://cdn.jsdelivr.net/npm/daisyui@3.9.4/dist/full.css" rel="stylesheet" type="text/css" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Authentication -->
+  <script src="auth.js"></script>
+  <script>
+    // Register Service Worker
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js')
+          .then(registration => {
+            console.log('ServiceWorker registration successful');
+          })
+          .catch(err => {
+            console.log('ServiceWorker registration failed: ', err);
+          });
+      });
+    }
+
+    tailwind.config = {
+      theme: {
+        extend: {},
+      },
+      daisyui: {
+        themes: ["light", "dark", "cupcake", "bumblebee", "emerald", "corporate", "synthwave", "retro", "cyberpunk", "valentine", "halloween", "garden", "forest", "aqua", "lofi", "pastel", "fantasy", "wireframe", "black", "luxury", "dracula", "cmyk", "autumn", "business", "acid", "lemonade", "night", "coffee", "winter"],
+      },
+    }
+  </script>
+  <style>
+    /* Custom styles that can't be handled by DaisyUI */
+    .disabled { pointer-events: none; opacity: 0.5; }
+    .suggestion {
+      color: red;
+      font-weight: bold;
+      margin-top: 5px;
+    }
+  </style>
+</head>
+<body class="min-h-screen bg-base-200">
+  <!-- Navigation Bar -->
+  <div class="navbar bg-primary text-primary-content fixed top-0 left-0 right-0 z-50">
+    <div class="navbar-start">
+      <div class="dropdown">
+        <label tabindex="0" class="btn btn-ghost lg:hidden">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h8m-8 6h16" />
+          </svg>
+        </label>
+        <ul tabindex="0" class="menu menu-sm dropdown-content mt-3 z-[100] p-2 shadow bg-primary rounded-box w-52">
+          <li><a href="index.html">Home</a></li>
+          <li><a href="workout-mode.html" class="active">Workout Mode</a></li>
+          <li><a href="workout-history.html">History</a></li>
+          <li><a href="statistics.html">Statistics</a></li>
+        </ul>
+      </div>
+      <a href="index.html" class="btn btn-ghost normal-case text-lg">Workout Tracker</a>
+    </div>
+    <div class="navbar-end hidden lg:flex">
+      <ul class="menu menu-horizontal px-1">
+        <li><a href="index.html">Home</a></li>
+        <li><a href="workout-mode.html" class="active">Workout Mode</a></li>
+        <li><a href="workout-history.html">History</a></li>
+        <li><a href="statistics.html">Statistics</a></li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- Main Workout Container -->
+  <div class="container mx-auto p-4 mt-16">
+    <div class="card bg-base-100 shadow-xl">
+      <div class="card-body">
+        <h1 class="card-title text-2xl">Workout Mode</h1>
+        
+        <!-- Overlay shown when no workout is due -->
+        <div id="notDueOverlay" class="fixed top-[64px] inset-x-0 bottom-0 bg-black bg-opacity-50 flex items-center justify-center z-40 hidden">
+          <div class="bg-base-100 p-6 rounded-lg shadow-xl text-center">
+            <p class="text-xl">No workout due today.<br>Please come back later.</p>
+          </div>
+        </div>
+        
+        <!-- Workout Content -->
+        <div id="workoutContent">
+          <!-- Workout Timer -->
+          <div id="workoutTimer" class="mb-4">
+            <p class="text-lg">Workout Time: <span id="workoutTime" class="font-bold">00:00:00</span></p>
+            <button id="startWorkoutBtn" class="btn btn-primary">Start Workout</button>
+          </div>
+          
+          <!-- Exercise Display -->
+          <div id="exerciseContainer" class="card bg-base-200 p-4 mb-4">
+            <h2 id="exerciseName" class="text-xl font-bold"></h2>
+            <p id="exercisePlanned" class="mb-2"></p>
+            
+            <!-- Stats area displays the last two sessions (including weight) -->
+            <div id="lastSessionStats" class="mb-4"></div>
+            
+            <!-- Set entries including weight input -->
+            <div id="setsContainer" class="mb-4"></div>
+            
+            <!-- Exercise Control Buttons -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <!-- Set Management -->
+              <div class="card bg-base-100 shadow-sm p-4">
+                <h3 class="font-bold mb-2">Set Management</h3>
+                <div class="flex gap-2">
+                  <button class="btn btn-primary flex-1" onclick="addSet()">Add Set</button>
+                  <button class="btn btn-ghost flex-1" onclick="removeSet()">Remove Set</button>
+                </div>
+              </div>
+              
+              <!-- Exercise Management -->
+              <div class="card bg-base-100 shadow-sm p-4">
+                <h3 class="font-bold mb-2">Exercise Management</h3>
+                <div class="flex flex-wrap gap-2">
+                  <button class="btn btn-primary flex-1" onclick="nextExercise()">Next Exercise</button>
+                  <button class="btn btn-ghost flex-1" id="switchExerciseBtn" onclick="switchExercise()">Switch Exercise</button>
+                </div>
+                <div class="flex flex-wrap gap-2 mt-2">
+                  <button class="btn btn-secondary flex-1" onclick="addCustomExercise()">Add Custom Exercise</button>
+                  <button class="btn btn-error flex-1" onclick="deleteCurrentExercise()">Delete Exercise</button>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Rest Timer Section -->
+          <div id="restTimerSection" class="card bg-base-200 p-4 mb-4">
+            <h3 class="font-bold mb-2">Rest Timer</h3>
+            <div class="flex flex-col gap-4">
+              <!-- Timer Display and Input -->
+              <div class="flex flex-wrap items-center gap-4">
+                <div class="stats bg-base-100 shadow min-w-[120px]">
+                  <div class="stat p-2">
+                    <div class="stat-value font-mono text-2xl" id="restTimeDisplay">00:00</div>
+                  </div>
+                </div>
+                <div class="join">
+                  <div class="join-item">
+                    <input type="number" id="restTimerEdit" value="90" class="input input-bordered w-20 join-item" min="0">
+                  </div>
+                  <span class="join-item btn btn-disabled no-animation">sec</span>
+                </div>
+              </div>
+              
+              <!-- Timer Controls -->
+              <div class="flex flex-wrap gap-2">
+                <button class="btn btn-primary flex-1" id="startRestTimerBtn" onclick="startRestTimer()">Start</button>
+                <button class="btn btn-ghost flex-1" id="pauseRestTimerBtn" onclick="pauseRestTimer()" disabled>Pause</button>
+                <button class="btn btn-ghost flex-1" id="resetRestTimerBtn" onclick="resetRestTimer()" disabled>Reset</button>
+              </div>
+            </div>
+          </div>
+          
+          <button class="btn btn-primary btn-lg w-full" onclick="finishWorkout()">Finish Workout</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal for switching exercises -->
+  <div id="switchExerciseModal" class="modal">
+    <div class="modal-box">
+      <h3 class="font-bold text-lg">Switch Exercise</h3>
+      <form id="switchExerciseForm">
+        <div class="form-control">
+          <label class="label">
+            <span class="label-text">Exercise Name:</span>
+          </label>
+          <input type="text" id="switchExerciseName" class="input input-bordered" required>
+        </div>
+        
+        <div class="form-control">
+          <label class="label">
+            <span class="label-text">Number of Sets:</span>
+          </label>
+          <input type="number" id="switchExerciseSets" min="1" value="3" class="input input-bordered" required>
+        </div>
+        
+        <div class="form-control">
+          <label class="label">
+            <span class="label-text">Minimum Reps:</span>
+          </label>
+          <input type="number" id="switchExerciseRepMin" min="1" value="8" class="input input-bordered" required>
+        </div>
+        
+        <div class="form-control">
+          <label class="label">
+            <span class="label-text">Maximum Reps:</span>
+          </label>
+          <input type="number" id="switchExerciseRepMax" min="1" value="12" class="input input-bordered" required>
+        </div>
+        
+        <div class="form-control">
+          <label class="label">
+            <span class="label-text">Rest Time (seconds):</span>
+          </label>
+          <input type="number" id="switchExerciseRestTime" min="0" value="90" class="input input-bordered" required>
+        </div>
+        
+        <div class="form-control">
+          <label class="label">
+            <span class="label-text">Default Weight (optional):</span>
+          </label>
+          <input type="number" id="switchExerciseWeight" min="0" step="0.5" class="input input-bordered">
+        </div>
+        
+        <div class="modal-action">
+          <button type="submit" class="btn btn-primary">Switch Exercise</button>
+          <button type="button" class="btn" onclick="document.getElementById('switchExerciseModal').classList.remove('modal-open')">Cancel</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal for adding custom exercises -->
+  <div id="addExerciseModal" class="modal">
+    <div class="modal-box">
+      <h3 class="font-bold text-lg">Add Custom Exercise</h3>
+      <form id="addExerciseForm">
+        <div class="form-control">
+          <label class="label">
+            <span class="label-text">Exercise Name:</span>
+          </label>
+          <input type="text" id="addExerciseName" class="input input-bordered" required>
+        </div>
+        
+        <div class="form-control">
+          <label class="label">
+            <span class="label-text">Number of Sets:</span>
+          </label>
+          <input type="number" id="addExerciseSets" min="1" value="3" class="input input-bordered" required>
+        </div>
+        
+        <div class="form-control">
+          <label class="label">
+            <span class="label-text">Minimum Reps:</span>
+          </label>
+          <input type="number" id="addExerciseRepMin" min="1" value="8" class="input input-bordered" required>
+        </div>
+        
+        <div class="form-control">
+          <label class="label">
+            <span class="label-text">Maximum Reps:</span>
+          </label>
+          <input type="number" id="addExerciseRepMax" min="1" value="12" class="input input-bordered" required>
+        </div>
+        
+        <div class="form-control">
+          <label class="label">
+            <span class="label-text">Rest Time (seconds):</span>
+          </label>
+          <input type="number" id="addExerciseRestTime" min="0" value="90" class="input input-bordered" required>
+        </div>
+        
+        <div class="form-control">
+          <label class="label">
+            <span class="label-text">Default Weight (optional):</span>
+          </label>
+          <input type="number" id="addExerciseWeight" min="0" step="0.5" class="input input-bordered">
+        </div>
+        
+        <div class="modal-action">
+          <button type="submit" class="btn btn-primary">Add Exercise</button>
+          <button type="button" class="btn" onclick="document.getElementById('addExerciseModal').classList.remove('modal-open')">Cancel</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    /* ====================
+       Global Variables & Utilities 
+       ==================== */
+    let activeCycle = null;
+    let currentDay = null; // The due day's object from activeCycle.days
+    let currentExerciseIndex = 0;
+    let workoutTimerInterval = null;
+    let workoutStartTime = null;
+    let restStartTime = null;
+    let restPauseTime = null;
+    let restTimeRemaining = null;
+    let restTimerInterval = null;
+
+    // Normalize a date (set time to midnight local)
+    function normalizeDate(d) {
+      let nd = new Date(d);
+      nd.setHours(0, 0, 0, 0);
+      return nd;
+    }
+
+    // Parse a "YYYY-MM-DD" string as a local date.
+    function parseLocalDate(dateStr) {
+      return new Date(dateStr + "T00:00");
+    }
+
+    // Retrieve the active cycle from localStorage
+    function getActiveCycle() {
+      const cycles = JSON.parse(localStorage.getItem("workoutCycles") || "[]");
+      return cycles.find(cycle => cycle.active);
+    }
+
+    // Retrieve completed workouts from localStorage
+    function getCompletedWorkouts() {
+      return JSON.parse(localStorage.getItem("completedWorkouts") || "[]");
+    }
+
+    function saveCompletedWorkout(workout) {
+      const workouts = getCompletedWorkouts();
+      workouts.push(workout);
+      localStorage.setItem("completedWorkouts", JSON.stringify(workouts));
+    }
+
+    // Get Today's Date (using debug date if provided)
+    function getToday() {
+      return new Date();
+    }
+
+    // Compute weight suggestion for the planned section.
+    // Returns "Increase weight" if the two most recent sessions for the current exercise meet:
+    //   (1) In each session, every set used an identical weight,
+    //   (2) In every set, the actual reps are >= the planned repRange.min,
+    //   (3) In every set, the felt rating is "Easy" or "Medium",
+    //   (4) And both sessions used the same weight.
+    function computeWeightSuggestion(exercise) {
+      const sessions = getCompletedWorkouts()
+        .filter(w => w.cycleId === activeCycle.id && w.details && w.details[exercise.name])
+        .sort((a, b) => new Date(b.date) - new Date(a.date));
+      if (sessions.length < 2) return "";
+      const session1 = sessions[0].details[exercise.name];
+      const session2 = sessions[1].details[exercise.name];
+      function checkSession(sessionData) {
+        if (!sessionData.weights || !sessionData.actualReps || !sessionData.felt) return false;
+        if (sessionData.weights.length === 0 || sessionData.actualReps.length === 0 || sessionData.felt.length === 0) return false;
+        const plannedMin = parseFloat(exercise.repRange.min);
+        const firstWeight = parseFloat(sessionData.weights[0].toString().trim());
+        
+        // Check if any set has reps below the minimum - if so, don't suggest increasing weight
+        const hasRepsBelowMin = sessionData.actualReps.some(r => parseFloat(r.toString().trim()) < plannedMin);
+        if (hasRepsBelowMin) return false;
+        
+        // All weights in this session must be equal.
+        if (!sessionData.weights.every(w => parseFloat(w.toString().trim()) === firstWeight)) return false;
+        
+        // Every set's felt rating must be "Easy" or "Medium".
+        if (sessionData.felt.some(f => f === "Hard")) return false;
+        return true;
+      }
+      if (checkSession(session1) && checkSession(session2)) {
+        if (parseFloat(session1.weights[0].toString().trim()) === parseFloat(session2.weights[0].toString().trim())) {
+          return "Increase weight";
+        }
+      }
+      return "";
+    }
+
+    // Determine Due Workout Day.
+    // If no previous workouts exist, the first workout is due immediately.
+    // Otherwise, the due day is based on the last workout finish date + rest days.
+    // Returns -1 if today is before the computed due date.
+    function determineDueWorkoutDay() {
+      activeCycle = getActiveCycle();
+      if (!activeCycle) return -1;
+      let today = normalizeDate(getToday());
+      let completed = getCompletedWorkouts().filter(w => w.cycleId === activeCycle.id);
+      if (completed.length === 0) {
+        return 0;
+      } else {
+        completed.sort((a, b) => new Date(b.date) - new Date(a.date));
+        let lastWorkout = completed[0];
+        let lastWorkoutDate = normalizeDate(parseLocalDate(lastWorkout.date));
+        let restDays = activeCycle.days[lastWorkout.dayIndex].restDaysAfter;
+        
+        // Calculate the due date by adding rest days + 1
+        // This ensures that if restDays = 1, the next workout is due 2 days after the last workout
+        let dueDate = new Date(lastWorkoutDate);
+        dueDate.setDate(dueDate.getDate() + restDays + 1);
+        dueDate = normalizeDate(dueDate);
+        
+        if (today < dueDate) return -1;
+        return (lastWorkout.dayIndex + 1) % activeCycle.days.length;
+      }
+    }
+
+    // Update UI: Enable workout only when due.
+    function updateDueStatus() {
+      const dueIndex = determineDueWorkoutDay();
+      const overlay = document.getElementById("notDueOverlay");
+      if (dueIndex === -1) {
+        overlay.classList.remove("hidden");
+        document.getElementById("workoutContent").classList.add("disabled");
+      } else {
+        overlay.classList.add("hidden");
+        document.getElementById("workoutContent").classList.remove("disabled");
+        currentDay = activeCycle.days[dueIndex];
+        currentExerciseIndex = 0;
+        loadExercise();
+      }
+    }
+
+    // Load and display the current exercise.
+    function loadExercise() {
+      if (!currentDay || currentDay.exercises.length === 0) {
+        document.getElementById("exerciseContainer").innerHTML =
+          "<p>No exercises available for this day.</p>";
+        return;
+      }
+      const exercise = currentDay.exercises[currentExerciseIndex];
+      
+      // Set the data attribute for the current exercise index
+      document.getElementById("exerciseContainer").setAttribute("data-exercise-index", currentExerciseIndex);
+      
+      document.getElementById("exerciseName").innerText = exercise.name;
+      let weightSuggestion = computeWeightSuggestion(exercise);
+      let weightText = weightSuggestion ? weightSuggestion : "";
+      document.getElementById("exercisePlanned").innerText =
+        `Planned: ${exercise.sets} sets, Reps: ${exercise.repRange.min}–${exercise.repRange.max}` +
+        (weightText ? `, Weight: ${weightText}` : "");
+      loadLastSessionStats(exercise.name);
+      loadSets(exercise);
+      document.getElementById("restTimerEdit").value = exercise.restTime;
+    }
+
+    // Load the last two session stats for the given exercise.
+    function loadLastSessionStats(exerciseName) {
+      const workouts = getCompletedWorkouts()
+        .filter(w => w.cycleId === activeCycle.id && w.details && w.details[exerciseName]);
+      workouts.sort((a, b) => new Date(b.date) - new Date(a.date));
+      const statsDiv = document.getElementById("lastSessionStats");
+      statsDiv.innerHTML = "";
+      if (workouts.length === 0) {
+        statsDiv.innerHTML = "<p>No previous stats available.</p>";
+        return;
+      }
+      const numToShow = Math.min(2, workouts.length);
+      let weightsList = [];
+      let allRepsAboveMin = true;
+      let allSetsEasyOrMedium = true;
+      const currentExercise = currentDay.exercises[currentExerciseIndex];
+      const plannedMin = parseFloat(currentExercise.repRange.min);
+      
+      for (let i = 0; i < numToShow; i++) {
+        const session = workouts[i];
+        const exData = session.details[exerciseName];
+        weightsList.push(exData.weights && exData.weights[0] ? exData.weights[0] : null);
+        statsDiv.innerHTML += `<p><strong>${session.date}:</strong> Weights: ${exData.weights ? exData.weights.join(", ") : "N/A"}, Reps: ${exData.actualReps.join(", ")}, Effort: ${exData.felt.join(", ")}</p>`;
+        
+        // Check if any reps are below the minimum
+        if (exData.actualReps.some(r => parseFloat(r.toString().trim()) < plannedMin)) {
+          allRepsAboveMin = false;
+        }
+        
+        // For the most recent workout (i=0), check if all sets are Easy or Medium
+        if (i === 0 && exData.felt.some(f => f === "Hard")) {
+          allSetsEasyOrMedium = false;
+        }
+      }
+      
+      // Only suggest increasing weight if:
+      // 1. There are at least two sessions
+      // 2. The weights are the same in both sessions
+      // 3. All reps are above the minimum
+      // 4. All sets in the most recent workout are Easy or Medium
+      if (numToShow === 2 && weightsList[0] && weightsList[0] === weightsList[1] && 
+          allRepsAboveMin && allSetsEasyOrMedium) {
+        statsDiv.innerHTML += `<p class="suggestion">Consider increasing weight for this exercise!</p>`;
+      }
+    }
+
+    // Manage sets for the current exercise.
+    function loadSets(exercise) {
+      const setsContainer = document.getElementById("setsContainer");
+      setsContainer.innerHTML = "";
+      for (let i = 0; i < exercise.sets; i++) {
+        addSetToContainer(setsContainer, i + 1);
+      }
+    }
+
+    function addSetToContainer(container, setNumber) {
+      const div = document.createElement("div");
+      div.className = "card bg-base-100 p-3 mb-2";
+      div.innerHTML = `
+        <p class="font-bold">Set ${setNumber}</p>
+        <div class="flex flex-wrap gap-2">
+          <label class="label">
+            <span class="label-text">Actual Reps:</span>
+            <input type="number" class="input input-bordered input-sm actualReps" min="0">
+          </label>
+          <label class="label">
+            <span class="label-text">Weight:</span>
+            <input type="number" class="input input-bordered input-sm weightInput" step="0.5" min="0">
+          </label>
+          <label class="label">
+            <span class="label-text">How it felt:</span>
+            <select class="select select-bordered select-sm feltSelect">
+              <option value="Easy">Easy</option>
+              <option value="Medium">Medium</option>
+              <option value="Hard">Hard</option>
+            </select>
+          </label>
+        </div>
+      `;
+      container.appendChild(div);
+    }
+
+    function addSet() {
+      const container = document.getElementById("setsContainer");
+      const currentCount = container.querySelectorAll(".card").length;
+      addSetToContainer(container, currentCount + 1);
+    }
+
+    function removeSet() {
+      const container = document.getElementById("setsContainer");
+      const entries = container.querySelectorAll(".card");
+      if (entries.length > 1) {
+        container.removeChild(entries[entries.length - 1]);
+      }
+    }
+
+    // Timer functions.
+    function startWorkoutTimer() {
+      workoutStartTime = new Date();
+      workoutTimerInterval = setInterval(() => {
+        const now = new Date();
+        const diff = now - workoutStartTime;
+        document.getElementById("workoutTime").innerText = formatTime(diff);
+      }, 1000);
+    }
+    function stopWorkoutTimer() {
+      clearInterval(workoutTimerInterval);
+    }
+    function formatTime(ms) {
+      let totalSec = Math.floor(ms / 1000);
+      let hours = Math.floor(totalSec / 3600);
+      let minutes = Math.floor((totalSec % 3600) / 60);
+      let seconds = totalSec % 60;
+      return `${pad(hours)}:${pad(minutes)}:${pad(seconds)}`;
+    }
+    function pad(num) {
+      return num.toString().padStart(2, "0");
+    }
+
+    function updateRestTimerButtons(state) {
+      const startBtn = document.getElementById('startRestTimerBtn');
+      const pauseBtn = document.getElementById('pauseRestTimerBtn');
+      const resetBtn = document.getElementById('resetRestTimerBtn');
+      
+      switch(state) {
+        case 'initial':
+          startBtn.disabled = false;
+          pauseBtn.disabled = true;
+          resetBtn.disabled = true;
+          break;
+        case 'running':
+          startBtn.disabled = true;
+          pauseBtn.disabled = false;
+          resetBtn.disabled = false;
+          break;
+        case 'paused':
+          startBtn.disabled = false;
+          pauseBtn.disabled = true;
+          resetBtn.disabled = false;
+          break;
+      }
+    }
+
+    function startRestTimer() {
+      clearInterval(restTimerInterval);
+      
+      if (restPauseTime) {
+        // Resume from pause
+        restStartTime = Date.now() - (restTimeRemaining - parseInt(document.getElementById("restTimerEdit").value) * 1000);
+      } else {
+        // Start new timer
+        const restTimeSec = parseInt(document.getElementById("restTimerEdit").value) || 0;
+        restTimeRemaining = restTimeSec * 1000;
+        restStartTime = Date.now();
+      }
+      
+      restPauseTime = null;
+      updateRestTimerButtons('running');
+      
+      restTimerInterval = setInterval(() => {
+        const elapsed = Date.now() - restStartTime;
+        restTimeRemaining = (parseInt(document.getElementById("restTimerEdit").value) * 1000) - elapsed;
+        
+        if (restTimeRemaining <= 0) {
+          restTimeRemaining = 0;
+          clearInterval(restTimerInterval);
+          updateRestTimerButtons('initial');
+          // Optional: Play a sound or show a notification when timer completes
+        }
+        
+        document.getElementById("restTimeDisplay").innerText = formatTime(restTimeRemaining);
+      }, 100);
+    }
+
+    function pauseRestTimer() {
+      if (restTimerInterval) {
+        clearInterval(restTimerInterval);
+        restPauseTime = Date.now();
+        updateRestTimerButtons('paused');
+      }
+    }
+
+    function resetRestTimer() {
+      clearInterval(restTimerInterval);
+      restStartTime = null;
+      restPauseTime = null;
+      restTimeRemaining = null;
+      const restTimeSec = parseInt(document.getElementById("restTimerEdit").value) || 0;
+      document.getElementById("restTimeDisplay").innerText = formatTime(restTimeSec * 1000);
+      updateRestTimerButtons('initial');
+    }
+
+    // Switch exercise functionality.
+    function switchExercise() {
+      // Show the modal
+      document.getElementById("switchExerciseModal").classList.add("modal-open");
+    }
+
+    // Go to next exercise.
+    function nextExercise() {
+      if (!currentDay) return;
+      if (currentExerciseIndex < currentDay.exercises.length - 1) {
+        currentExerciseIndex++;
+        loadExercise();
+      } else {
+        alert("All exercises for today are complete.");
+      }
+    }
+
+    // Add a custom exercise to the current workout
+    function addCustomExercise() {
+      // Show the modal
+      document.getElementById("addExerciseModal").classList.add("modal-open");
+    }
+
+    // Delete the current exercise from the workout
+    function deleteCurrentExercise() {
+      if (!currentDay || currentDay.exercises.length === 0) return;
+      
+      const exerciseName = currentDay.exercises[currentExerciseIndex].name;
+      if (!confirm(`Are you sure you want to delete "${exerciseName}" from this workout?`)) {
+        return;
+      }
+      
+      // Remove the exercise from the current day's exercises
+      currentDay.exercises.splice(currentExerciseIndex, 1);
+      
+      // If there are no more exercises, show a message
+      if (currentDay.exercises.length === 0) {
+        document.getElementById("exerciseContainer").innerHTML = 
+          "<p>No exercises available for this day.</p>";
+        return;
+      }
+      
+      // Adjust the current exercise index if needed
+      if (currentExerciseIndex >= currentDay.exercises.length) {
+        currentExerciseIndex = currentDay.exercises.length - 1;
+      }
+      
+      // Load the next exercise
+      loadExercise();
+    }
+
+    // Finish workout and save session.
+    function finishWorkout() {
+      // Check if a workout is due
+      if (document.getElementById("workoutContent").classList.contains("disabled")) {
+        alert("No workout is due today.");
+        return;
+      }
+
+      // Check if there are any exercises in the current day
+      if (!currentDay || !currentDay.exercises || currentDay.exercises.length === 0) {
+        alert("No exercises available for this workout.");
+        return;
+      }
+
+      // Check if all exercises have been completed
+      let allExercisesComplete = true;
+      let details = {};
+      
+      // Get the current exercise data
+      const setsContainer = document.getElementById("setsContainer");
+      if (!setsContainer) {
+        alert("Error: Sets container not found.");
+        return;
+      }
+      
+      const setEntries = setsContainer.querySelectorAll(".card");
+      if (!setEntries || setEntries.length === 0) {
+        alert("No sets found for the current exercise.");
+        return;
+      }
+      
+      let complete = true;
+      setEntries.forEach(entry => {
+        if (entry.querySelector(".actualReps").value === "") {
+          complete = false;
+        }
+      });
+      
+      if (!complete) {
+        allExercisesComplete = false;
+        if (!confirm(`Exercise "${currentDay.exercises[currentExerciseIndex].name}" has incomplete sets. Save incomplete workout?`)) {
+          return;
+        }
+      }
+      
+      // Collect the sets data for the current exercise
+      const setsData = Array.from(setEntries).map(entry => {
+        return {
+          actualReps: entry.querySelector(".actualReps").value,
+          weight: entry.querySelector(".weightInput").value,
+          felt: entry.querySelector(".feltSelect").value
+        };
+      });
+      
+      // Add the current exercise's data to the details object
+      details[currentDay.exercises[currentExerciseIndex].name] = {
+        actualReps: setsData.map(s => s.actualReps),
+        weights: setsData.map(s => s.weight),
+        felt: setsData.map(s => s.felt)
+      };
+      
+      // Ask if there are any other exercises to save
+      if (currentDay.exercises.length > 1) {
+        if (confirm("Do you want to save data for other exercises in this workout?")) {
+          // Loop through all exercises except the current one
+          for (let i = 0; i < currentDay.exercises.length; i++) {
+            if (i === currentExerciseIndex) continue; // Skip the current exercise
+            
+            const exercise = currentDay.exercises[i];
+            if (confirm(`Do you want to save data for "${exercise.name}"?`)) {
+              // Prompt for sets data
+              const numSets = prompt(`How many sets did you complete for "${exercise.name}"?`, "3");
+              if (!numSets || isNaN(numSets) || parseInt(numSets) <= 0) continue;
+              
+              const exerciseData = {
+                actualReps: [],
+                weights: [],
+                felt: []
+              };
+              
+              // Collect data for each set
+              for (let j = 0; j < parseInt(numSets); j++) {
+                const reps = prompt(`Reps for set ${j+1} of "${exercise.name}":`, "");
+                const weight = prompt(`Weight for set ${j+1} of "${exercise.name}":`, "");
+                const effort = prompt(`Effort for set ${j+1} of "${exercise.name}" (Easy/Medium/Hard):`, "Medium");
+                
+                if (reps && !isNaN(reps)) exerciseData.actualReps.push(reps);
+                if (weight && !isNaN(weight)) exerciseData.weights.push(weight);
+                if (effort) exerciseData.felt.push(effort);
+              }
+              
+              // Add this exercise's data to the details object
+              details[exercise.name] = exerciseData;
+            }
+          }
+        }
+      }
+      
+      stopWorkoutTimer();
+      let duration = workoutStartTime ? (Date.now() - workoutStartTime) : 0;
+      
+      const completedWorkout = {
+        cycleId: activeCycle.id,
+        dayIndex: activeCycle.days.indexOf(currentDay),
+        date: getToday().toISOString().split("T")[0],
+        details: details,
+        workoutDuration: duration
+      };
+      
+      saveCompletedWorkout(completedWorkout);
+      alert("Workout saved!");
+      window.location.reload();
+    }
+
+    // Initialization on page load.
+    document.addEventListener("DOMContentLoaded", () => {
+      activeCycle = getActiveCycle();
+      if (!activeCycle) {
+        alert("No active cycle set. Please set an active cycle in Cycle Manager.");
+        document.getElementById("workoutContent").classList.add("disabled");
+        return;
+      }
+      updateDueStatus();
+      document.getElementById("startWorkoutBtn").onclick = function() {
+        this.disabled = true;
+        startWorkoutTimer();
+      };
+
+      // Set up switch exercise form submission
+      document.getElementById("switchExerciseForm").onsubmit = function(e) {
+        e.preventDefault();
+        
+        const newName = document.getElementById("switchExerciseName").value;
+        const plannedSets = parseInt(document.getElementById("switchExerciseSets").value) || 0;
+        const repMin = parseInt(document.getElementById("switchExerciseRepMin").value) || 0;
+        const repMax = parseInt(document.getElementById("switchExerciseRepMax").value) || 0;
+        const restTime = parseInt(document.getElementById("switchExerciseRestTime").value) || 0;
+        const defaultWeight = document.getElementById("switchExerciseWeight").value ? 
+          parseFloat(document.getElementById("switchExerciseWeight").value) : null;
+        
+        // Update the current exercise
+        currentDay.exercises[currentExerciseIndex] = {
+          name: newName,
+          sets: plannedSets,
+          repRange: { min: repMin, max: repMax },
+          restTime: restTime,
+          weight: defaultWeight,
+          targetedBodyParts: []
+        };
+        
+        // Close the modal
+        document.getElementById("switchExerciseModal").classList.remove("modal-open");
+        
+        // Reload the exercise
+        loadExercise();
+      };
+
+      // Set up add exercise form submission
+      document.getElementById("addExerciseForm").onsubmit = function(e) {
+        e.preventDefault();
+        
+        const newName = document.getElementById("addExerciseName").value;
+        const plannedSets = parseInt(document.getElementById("addExerciseSets").value) || 0;
+        const repMin = parseInt(document.getElementById("addExerciseRepMin").value) || 0;
+        const repMax = parseInt(document.getElementById("addExerciseRepMax").value) || 0;
+        const restTime = parseInt(document.getElementById("addExerciseRestTime").value) || 0;
+        const defaultWeight = document.getElementById("addExerciseWeight").value ? 
+          parseFloat(document.getElementById("addExerciseWeight").value) : null;
+        
+        // Create the new exercise object
+        const newExercise = {
+          name: newName,
+          sets: plannedSets,
+          repRange: { min: repMin, max: repMax },
+          restTime: restTime,
+          weight: defaultWeight,
+          targetedBodyParts: []
+        };
+        
+        // Add the new exercise to the current day's exercises
+        currentDay.exercises.push(newExercise);
+        
+        // Close the modal
+        document.getElementById("addExerciseModal").classList.remove("modal-open");
+        
+        // Switch to the new exercise
+        currentExerciseIndex = currentDay.exercises.length - 1;
+        loadExercise();
+      };
+    });
+  </script>
+</body>
+</html>
