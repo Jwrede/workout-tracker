@@ -10,9 +10,7 @@ const ASSETS_TO_CACHE = [
   '/workout-tracker/auth.js',
   '/workout-tracker/manifest.json',
   '/workout-tracker/icons/icon-192x192.png',
-  '/workout-tracker/icons/icon-512x512.png',
-  'https://cdn.jsdelivr.net/npm/daisyui@3.9.4/dist/full.css',
-  'https://cdn.tailwindcss.com'
+  '/workout-tracker/icons/icon-512x512.png'
 ];
 
 // Install event - cache assets
