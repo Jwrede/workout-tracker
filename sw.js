@@ -2,15 +2,15 @@
 
 const CACHE_NAME = 'workout-tracker-v1';
 const ASSETS_TO_CACHE = [
-  './',
-  './index.html',
-  './workout-mode.html',
-  './workout-history.html',
-  './statistics.html',
-  './auth.js',
-  './manifest.json',
-  './icons/icon-192x192.png',
-  './icons/icon-512x512.png',
+  '/workout-tracker/',
+  '/workout-tracker/index.html',
+  '/workout-tracker/workout-mode.html',
+  '/workout-tracker/workout-history.html',
+  '/workout-tracker/statistics.html',
+  '/workout-tracker/auth.js',
+  '/workout-tracker/manifest.json',
+  '/workout-tracker/icons/icon-192x192.png',
+  '/workout-tracker/icons/icon-512x512.png',
   'https://cdn.jsdelivr.net/npm/daisyui@3.9.4/dist/full.css',
   'https://cdn.tailwindcss.com'
 ];
@@ -50,13 +50,21 @@ self.addEventListener('activate', (event) => {
 
 // Fetch event - serve from cache, fall back to network
 self.addEventListener('fetch', (event) => {
+  // Skip non-GET requests
+  if (event.request.method !== 'GET') return;
+
+  // Handle requests
   event.respondWith(
     caches.match(event.request)
       .then(response => {
         if (response) {
           return response; // Cache hit
         }
-        return fetch(event.request.clone())
+
+        // Clone the request for the fetch call
+        const fetchRequest = event.request.clone();
+
+        return fetch(fetchRequest)
           .then(response => {
             // Check if we received a valid response
             if (!response || response.status !== 200 || response.type !== 'basic') {
@@ -66,6 +74,7 @@ self.addEventListener('fetch', (event) => {
             // Clone the response
             const responseToCache = response.clone();
 
+            // Cache the response
             caches.open(CACHE_NAME)
               .then(cache => {
                 if (event.request.url.startsWith('http')) {
@@ -77,8 +86,13 @@ self.addEventListener('fetch', (event) => {
           })
           .catch(error => {
             console.error('[Service Worker] Fetch failed:', error);
-            // You might want to return a custom offline page here
-            return new Response('Network error occurred', { status: 503 });
+            // Return a custom offline response
+            return new Response('You are offline. Please check your internet connection.', {
+              status: 503,
+              headers: new Headers({
+                'Content-Type': 'text/plain'
+              })
+            });
           });
       })
   );
