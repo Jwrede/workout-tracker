@@ -97,17 +97,26 @@
       <div class="card-body">
         <h1 class="card-title text-2xl">Workout Cycle Manager</h1>
 
+        <!-- Import Workout Cycles Section -->
+        <div class="mb-6">
+          <label class="label">
+            <span class="label-text font-bold">Import Workout Cycles (JSON):</span>
+          </label>
+          <div class="flex flex-col sm:flex-row gap-2 items-start sm:items-end">
+            <label class="btn btn-outline btn-primary cursor-pointer">
+              <span id="importFileLabel">Choose File</span>
+              <input type="file" id="importCycles" accept=".json" class="hidden" onchange="updateImportFileName()" />
+            </label>
+            <span id="importFileName" class="text-sm text-gray-500 ml-2"></span>
+            <button onclick="importWorkoutCycles()" class="btn btn-primary">Import</button>
+          </div>
+        </div>
+
         <!-- Cycle List Section -->
         <div id="cycleListSection" class="mb-6">
           <h2 class="text-xl font-bold mb-4">Existing Cycles</h2>
           <div id="cycleList" class="space-y-4"></div>
-          <div class="flex flex-wrap gap-2 mt-4">
-            <button class="btn btn-primary" onclick="newCycle()">New Cycle</button>
-            <div class="flex items-center gap-2">
-              <input type="file" id="importFile" accept=".json" class="file-input file-input-bordered file-input-sm w-full max-w-xs" />
-              <button class="btn btn-sm" onclick="importCycles()">Import</button>
-            </div>
-          </div>
+          <button class="btn btn-primary mt-4" onclick="newCycle()">New Cycle</button>
         </div>
 
         <div class="divider"></div>
@@ -133,72 +142,13 @@
             <button class="btn" onclick="cancelEdit()">Cancel</button>
           </div>
         </div>
-
-        <!-- Exercise template for the editor -->
-        <template id="exerciseTemplate">
-          <div class="card bg-base-200 p-4 mb-4 exercise-card">
-            <div class="flex justify-between items-center mb-2">
-              <input type="text" class="input input-bordered w-full max-w-xs exercise-name" placeholder="Exercise Name">
-              <button class="btn btn-square btn-sm" onclick="removeExercise(this)">✕</button>
-            </div>
-            
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div class="form-control">
-                <label class="label">
-                  <span class="label-text">Sets:</span>
-                </label>
-                <input type="number" class="input input-bordered w-24 exercise-sets" min="1" value="3">
-              </div>
-
-              <div class="form-control">
-                <label class="label">
-                  <span class="label-text">Rest Time (seconds):</span>
-                </label>
-                <input type="number" class="input input-bordered w-24 exercise-rest" min="0" step="15" value="90">
-              </div>
-            </div>
-
-            <div class="form-control">
-              <label class="label">
-                <span class="label-text">Rep Range:</span>
-              </label>
-              <div class="flex flex-wrap items-center gap-2">
-                <input type="number" class="input input-bordered w-20 exercise-min-reps" min="1" value="8" placeholder="Min">
-                <span>to</span>
-                <input type="number" class="input input-bordered w-20 exercise-max-reps" min="1" value="12" placeholder="Max">
-                <span>reps</span>
-              </div>
-            </div>
-
-            <div class="form-control mt-2">
-              <label class="label">
-                <span class="label-text">Target Muscles:</span>
-              </label>
-              <div class="checkbox-group exercise-muscles">
-                ${bodyParts.map(part => `
-                  <label>
-                    <input type="checkbox" class="checkbox checkbox-sm" value="${part}">
-                    <span>${part}</span>
-                  </label>
-                `).join('')}
-              </div>
-            </div>
-
-            <div class="form-control mt-2">
-              <label class="label">
-                <span class="label-text">Notes:</span>
-              </label>
-              <textarea class="textarea textarea-bordered exercise-notes" placeholder="Exercise notes"></textarea>
-            </div>
-          </div>
-        </template>
       </div>
     </div>
   </div>
 
   <script>
     // Global variables
-    const bodyParts = ["Chest", "Quad", "Ham", "Calves", "Abs", "Bic", "Tric", "Lateral Delt", "Front Delt", "Rear Delt"];
+    const bodyParts = ["Chest", "Quad", "Ham", "Calves", "Abs", "Bic", "Tric", "Lateral Delt", "Front Delt", "Rear Delt", "Back"];
     let currentCycleId = null; // null means new cycle
     let editorDayCount = 0;
 
@@ -500,7 +450,7 @@
       exerciseDiv.appendChild(repRangeLabel);
       
       const repRangeDiv = document.createElement("div");
-      repRangeDiv.className = "flex gap-2";
+      repRangeDiv.className = "flex flex-col gap-2";
       
       const repMinInput = document.createElement("input");
       repMinInput.type = "number";
@@ -577,52 +527,38 @@
       container.appendChild(exerciseDiv);
     }
 
-    // Import cycles from JSON file
-    async function importCycles() {
-      const fileInput = document.getElementById('importFile');
-      const file = fileInput.files[0];
-      
-      if (!file) {
-        alert('Please select a file to import');
+    // Import workout cycles from a JSON file
+    function importWorkoutCycles() {
+      const fileInput = document.getElementById('importCycles');
+      if (!fileInput.files.length) {
+        alert('Please select a JSON file.');
         return;
       }
-
-      try {
-        const text = await file.text();
-        const data = JSON.parse(text);
-        
-        if (!data.workoutCycles || !Array.isArray(data.workoutCycles)) {
-          throw new Error('Invalid file format. Expected workoutCycles array.');
+      const file = fileInput.files[0];
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        try {
+          const cycles = JSON.parse(e.target.result);
+          localStorage.setItem('workoutCycles', JSON.stringify(cycles));
+          alert('Workout cycles imported successfully!');
+          refreshCycleList();
+        } catch (err) {
+          alert('Invalid JSON file.');
         }
+      };
+      reader.readAsText(file);
+    }
 
-        // Validate the structure
-        data.workoutCycles.forEach(cycle => {
-          if (!cycle.cycleName || !Array.isArray(cycle.days)) {
-            throw new Error('Invalid cycle format. Each cycle must have a name and days array.');
-          }
-        });
-
-        // Generate new IDs for imported cycles to avoid conflicts
-        const importedCycles = data.workoutCycles.map(cycle => ({
-          ...cycle,
-          id: 'cycle_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9),
-          active: false // Set imported cycles as inactive by default
-        }));
-
-        // Merge with existing cycles
-        const existingCycles = loadCycles();
-        const mergedCycles = [...existingCycles, ...importedCycles];
-        
-        // Save and refresh
-        saveCycles(mergedCycles);
-        refreshCycleList();
-        
-        // Clear the file input
-        fileInput.value = '';
-        
-        alert('Cycles imported successfully!');
-      } catch (error) {
-        alert('Error importing cycles: ' + error.message);
+    // Update file name display for import
+    function updateImportFileName() {
+      const fileInput = document.getElementById('importCycles');
+      const fileNameSpan = document.getElementById('importFileName');
+      if (fileInput.files.length > 0) {
+        fileNameSpan.textContent = fileInput.files[0].name;
+        document.getElementById('importFileLabel').textContent = 'Change File';
+      } else {
+        fileNameSpan.textContent = '';
+        document.getElementById('importFileLabel').textContent = 'Choose File';
       }
     }
 

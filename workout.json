@@ -1,0 +1,201 @@
+[
+    {
+      "id": "cycle-1",
+      "cycleName": "Intermediate Upper/Lower Split",
+      "days": [
+        {
+          "name": "Day 1 – Upper Body A",
+          "restDaysAfter": 0,
+          "exercises": [
+            {
+              "name": "Barbell Bench Press",
+              "sets": 4,
+              "repRange": { "min": 8, "max": 10 },
+              "restTime": 90,
+              "targetedBodyParts": ["Chest"]
+            },
+            {
+              "name": "Pull-Ups / Lat Pulldown",
+              "sets": 3,
+              "repRange": { "min": 8, "max": 12 },
+              "restTime": 90,
+              "targetedBodyParts": ["Back"]
+            },
+            {
+              "name": "Seated Dumbbell Overhead Press",
+              "sets": 3,
+              "repRange": { "min": 8, "max": 10 },
+              "restTime": 90,
+              "targetedBodyParts": ["Front Delt"]
+            },
+            {
+              "name": "Bent-Over Barbell Row",
+              "sets": 3,
+              "repRange": { "min": 8, "max": 10 },
+              "restTime": 90,
+              "targetedBodyParts": ["Back"]
+            },
+            {
+              "name": "Lateral Raises",
+              "sets": 4,
+              "repRange": { "min": 10, "max": 15 },
+              "restTime": 60,
+              "targetedBodyParts": ["Lateral Delt"]
+            },
+            {
+              "name": "Rear Delt Flyes",
+              "sets": 4,
+              "repRange": { "min": 10, "max": 15 },
+              "restTime": 60,
+              "targetedBodyParts": ["Rear Delt"]
+            },
+            {
+              "name": "Dumbbell Curls",
+              "sets": 4,
+              "repRange": { "min": 10, "max": 12 },
+              "restTime": 60,
+              "targetedBodyParts": ["Bic"]
+            },
+            {
+              "name": "Cable Triceps Pushdowns",
+              "sets": 3,
+              "repRange": { "min": 10, "max": 12 },
+              "restTime": 60,
+              "targetedBodyParts": ["Tric"]
+            },
+            {
+              "name": "Planks",
+              "sets": 2,
+              "repRange": { "min": 30, "max": 45 },
+              "restTime": 30,
+              "targetedBodyParts": ["Core"]
+            }
+          ]
+        },
+        {
+          "name": "Day 2 – Lower Body A",
+          "restDaysAfter": 1,
+          "exercises": [
+            {
+              "name": "Back Squat",
+              "sets": 4,
+              "repRange": { "min": 8, "max": 10 },
+              "restTime": 120,
+              "targetedBodyParts": ["Quad"]
+            },
+            {
+              "name": "Romanian Deadlift",
+              "sets": 2,
+              "repRange": { "min": 8, "max": 10 },
+              "restTime": 120,
+              "targetedBodyParts": ["Ham"]
+            },
+            {
+              "name": "Standing Calf Raises",
+              "sets": 2,
+              "repRange": { "min": 10, "max": 15 },
+              "restTime": 60,
+              "targetedBodyParts": ["Calves"]
+            },
+            {
+              "name": "Ab Crunches",
+              "sets": 2,
+              "repRange": { "min": 12, "max": 15 },
+              "restTime": 60,
+              "targetedBodyParts": ["Core"]
+            }
+          ]
+        },
+        {
+          "name": "Day 3 – Upper Body B",
+          "restDaysAfter": 0,
+          "exercises": [
+            {
+              "name": "Incline Dumbbell Press",
+              "sets": 4,
+              "repRange": { "min": 8, "max": 10 },
+              "restTime": 90,
+              "targetedBodyParts": ["Chest"]
+            },
+            {
+              "name": "Seated Cable Row",
+              "sets": 3,
+              "repRange": { "min": 8, "max": 12 },
+              "restTime": 90,
+              "targetedBodyParts": ["Back"]
+            },
+            {
+              "name": "Lateral Raises",
+              "sets": 4,
+              "repRange": { "min": 10, "max": 15 },
+              "restTime": 60,
+              "targetedBodyParts": ["Lateral Delt"]
+            },
+            {
+              "name": "Rear Delt Flyes / Face Pulls",
+              "sets": 4,
+              "repRange": { "min": 10, "max": 15 },
+              "restTime": 60,
+              "targetedBodyParts": ["Rear Delt"]
+            },
+            {
+              "name": "EZ-Bar Curls",
+              "sets": 4,
+              "repRange": { "min": 10, "max": 12 },
+              "restTime": 60,
+              "targetedBodyParts": ["Bic"]
+            },
+            {
+              "name": "Overhead Triceps Extensions",
+              "sets": 3,
+              "repRange": { "min": 10, "max": 12 },
+              "restTime": 60,
+              "targetedBodyParts": ["Tric"]
+            },
+            {
+              "name": "Hanging Leg Raises",
+              "sets": 2,
+              "repRange": { "min": 10, "max": 12 },
+              "restTime": 60,
+              "targetedBodyParts": ["Core"]
+            }
+          ]
+        },
+        {
+          "name": "Day 4 – Lower Body B",
+          "restDaysAfter": 1,
+          "exercises": [
+            {
+              "name": "Leg Press",
+              "sets": 4,
+              "repRange": { "min": 8, "max": 10 },
+              "restTime": 90,
+              "targetedBodyParts": ["Quad"]
+            },
+            {
+              "name": "Lying Leg Curl",
+              "sets": 2,
+              "repRange": { "min": 10, "max": 12 },
+              "restTime": 90,
+              "targetedBodyParts": ["Ham"]
+            },
+            {
+              "name": "Seated Calf Raises",
+              "sets": 2,
+              "repRange": { "min": 10, "max": 15 },
+              "restTime": 60,
+              "targetedBodyParts": ["Calves"]
+            },
+            {
+              "name": "Ab Rollouts / Plank Variations",
+              "sets": 2,
+              "repRange": { "min": 10, "max": 12 },
+              "restTime": 60,
+              "targetedBodyParts": ["Core"]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+  

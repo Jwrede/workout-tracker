@@ -10,7 +10,7 @@ const ASSETS_TO_CACHE = [
   '/workout-tracker/auth.js',
   '/workout-tracker/manifest.json',
   '/workout-tracker/icons/icon-192x192.png',
-  '/workout-tracker/icons/icon-512x512.png'
+  '/workout-tracker/icons/icon-512x512.png',
 ];
 
 // Install event - cache assets

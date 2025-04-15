@@ -18,6 +18,7 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <!-- Chart.js -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@1.4.0"></script>
   <!-- Authentication -->
   <script src="auth.js"></script>
   <script>
@@ -44,6 +45,39 @@
         themes: ["light", "dark", "cupcake", "bumblebee", "emerald", "corporate", "synthwave", "retro", "cyberpunk", "valentine", "halloween", "garden", "forest", "aqua", "lofi", "pastel", "fantasy", "wireframe", "black", "luxury", "dracula", "cmyk", "autumn", "business", "acid", "lemonade", "night", "coffee", "winter"],
       },
     }
+
+    // Constants
+    // Reference values for each body part (from your table)
+    const volumeReferences = {
+      "Core":      { MV: 0,  MEV: 0,  MAV_min: 16, MAV_max: 20, MRV: 25 },
+      "Back":     { MV: 8,  MEV: 10, MAV_min: 14, MAV_max: 22, MRV: 25 },
+      "Bic":      { MV: 5,  MEV: 8,  MAV_min: 14, MAV_max: 20, MRV: 26 },
+      "Tric":     { MV: 4,  MEV: 6,  MAV_min: 10, MAV_max: 14, MRV: 18 },
+      "Calves":   { MV: 6,  MEV: 8,  MAV_min: 12, MAV_max: 16, MRV: 20 },
+      "Chest":    { MV: 8,  MEV: 10, MAV_min: 12, MAV_max: 20, MRV: 22 },
+      "Front Delt": { MV: 0, MEV: 0, MAV_min: 6, MAV_max: 8, MRV: 12 },
+      "Glutes":   { MV: 0,  MEV: 0,  MAV_min: 4,  MAV_max: 12, MRV: 16 },
+      "Ham":      { MV: 4,  MEV: 6,  MAV_min: 10, MAV_max: 16, MRV: 20 },
+      "Quad":     { MV: 6,  MEV: 8,  MAV_min: 12, MAV_max: 18, MRV: 20 },
+      "Lateral Delt": { MV: 6, MEV: 8, MAV_min: 16, MAV_max: 22, MRV: 26 },
+      "Rear Delt": { MV: 6, MEV: 8, MAV_min: 16, MAV_max: 22, MRV: 26 },
+      "Traps":    { MV: 0,  MEV: 0,  MAV_min: 12, MAV_max: 20, MRV: 26 }
+    };
+    const bodyParts = ["Chest", "Quad", "Ham", "Calves", "Core", "Bic", "Tric", "Lateral Delt", "Front Delt", "Rear Delt", "Back"];
+
+    const chartColors = [
+      'rgba(255, 99, 132, 0.5)',   // Red
+      'rgba(54, 162, 235, 0.5)',   // Blue
+      'rgba(255, 206, 86, 0.5)',   // Yellow
+      'rgba(75, 192, 192, 0.5)',   // Teal
+      'rgba(153, 102, 255, 0.5)',  // Purple
+      'rgba(255, 159, 64, 0.5)',   // Orange
+      'rgba(199, 199, 199, 0.5)',  // Gray
+      'rgba(83, 102, 255, 0.5)',   // Indigo
+      'rgba(255, 99, 255, 0.5)',   // Pink
+      'rgba(159, 159, 64, 0.5)',   // Olive
+      'rgba(4, 159, 64, 0.5)',     // Green
+    ];
   </script>
 </head>
 <body class="min-h-screen bg-base-200">
@@ -144,22 +178,6 @@
   </div>
 
   <script>
-    // Constants
-    const bodyParts = ["Chest", "Quad", "Ham", "Calves", "Core", "Bic", "Tric", "Lateral Delt", "Front Delt", "Rear Delt", "Back"];
-    const chartColors = [
-      'rgba(255, 99, 132, 0.5)',   // Red
-      'rgba(54, 162, 235, 0.5)',   // Blue
-      'rgba(255, 206, 86, 0.5)',   // Yellow
-      'rgba(75, 192, 192, 0.5)',   // Teal
-      'rgba(153, 102, 255, 0.5)',  // Purple
-      'rgba(255, 159, 64, 0.5)',   // Orange
-      'rgba(199, 199, 199, 0.5)',  // Gray
-      'rgba(83, 102, 255, 0.5)',   // Indigo
-      'rgba(255, 99, 255, 0.5)',   // Pink
-      'rgba(159, 159, 64, 0.5)',   // Olive
-      'rgba(4, 159, 64, 0.5)',   // Green
-    ];
-
     // Utility Functions
     function getWorkoutCycles() {
       return JSON.parse(localStorage.getItem("workoutCycles") || "[]");
@@ -268,20 +286,79 @@
     // Chart Creation Functions
     function createVolumeChart(canvasId, data, label) {
       const ctx = document.getElementById(canvasId).getContext('2d');
+      // Annotation lines for each body part
+      const annotationColors = {
+        MV:   '#888',
+        MEV:  '#0af',
+        MAV_min: '#fa0',
+        MAV_max: '#f00',
+        MRV:  '#0a0'
+      };
+      const annotations = {};
+      
+      // Create legend datasets (hidden but show in legend)
+      const legendDatasets = Object.entries(annotationColors).map(([key, color]) => ({
+        label: key,
+        data: Array(bodyParts.length).fill(null),
+        borderColor: color,
+        borderWidth: 3,
+        pointStyle: 'line',
+        hidden: false,
+        type: 'line'
+      }));
+
+      bodyParts.forEach((part, i) => {
+        const ref = volumeReferences[part] || {};
+        Object.entries(annotationColors).forEach(([key, color]) => {
+          let refKey = key;
+          if (ref[refKey] !== undefined) {
+            annotations[`${part}_${key}`] = {
+              type: 'line',
+              xMin: i - 0.4,
+              xMax: i + 0.4,
+              yMin: ref[refKey],
+              yMax: ref[refKey],
+              borderColor: color,
+              borderWidth: 3,
+              label: {
+                enabled: false  // Disable individual labels since we now have a legend
+              }
+            };
+          }
+        });
+      });
+      
       return new Chart(ctx, {
         type: 'bar',
         data: {
           labels: bodyParts,
-          datasets: [{
-            label: label,
-            data: bodyParts.map(part => data[part]),
-            backgroundColor: chartColors,
-            borderColor: chartColors.map(color => color.replace('0.5', '1')),
-            borderWidth: 1
-          }]
+          datasets: [
+            {
+              label: label,
+              data: bodyParts.map(part => data[part]),
+              backgroundColor: chartColors,
+              borderColor: chartColors.map(color => color.replace('0.5', '1')),
+              borderWidth: 1
+            },
+            ...legendDatasets  // Add the legend datasets
+          ]
         },
         options: {
           responsive: true,
+          plugins: {
+            annotation: { annotations },
+            legend: {
+              display: true,
+              position: 'top',
+              labels: {
+                usePointStyle: true,
+                filter: function(item) {
+                  // Show both the main data and reference lines
+                  return true;  // Show all labels
+                }
+              }
+            }
+          },
           scales: {
             y: {
               beginAtZero: true,
