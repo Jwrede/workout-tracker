@@ -18,6 +18,36 @@
   <!-- Authentication -->
   <script src="auth.js"></script>
   <script>
+    let deferredPrompt;
+
+    window.addEventListener('beforeinstallprompt', (e) => {
+      // Prevent Chrome 67 and earlier from automatically showing the prompt
+      e.preventDefault();
+      // Stash the event so it can be triggered later.
+      deferredPrompt = e;
+      // Show the install button
+      const installButton = document.getElementById('installButton');
+      installButton.style.display = 'block';
+      
+      installButton.addEventListener('click', async () => {
+        // Hide the install button
+        installButton.style.display = 'none';
+        // Show the install prompt
+        deferredPrompt.prompt();
+        // Wait for the user to respond to the prompt
+        const { outcome } = await deferredPrompt.userChoice;
+        console.log(`User response to the install prompt: ${outcome}`);
+        // We no longer need the prompt. Clear it up.
+        deferredPrompt = null;
+      });
+    });
+
+    // Hide the install button if the app is already installed
+    window.addEventListener('appinstalled', () => {
+      document.getElementById('installButton').style.display = 'none';
+      console.log('PWA was installed');
+    });
+
     // Register Service Worker
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
@@ -71,6 +101,9 @@
         <li><a href="workout-history.html" class="active">History</a></li>
         <li><a href="statistics.html">Statistics</a></li>
       </ul>
+      <button id="installButton" class="btn btn-ghost btn-sm normal-case ml-2" style="display: none;">
+        Install App
+      </button>
     </div>
   </div>
 
