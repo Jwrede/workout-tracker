@@ -129,11 +129,14 @@
               <div class="card bg-base-100 shadow-sm p-4">
                 <h3 class="font-bold mb-2">Exercise Management</h3>
                 <div class="flex flex-wrap gap-2">
+                  <button class="btn btn-primary flex-1" onclick="previousExercise()">Previous Exercise</button>
                   <button class="btn btn-primary flex-1" onclick="nextExercise()">Next Exercise</button>
-                  <button class="btn btn-ghost flex-1" id="switchExerciseBtn" onclick="switchExercise()">Switch Exercise</button>
                 </div>
                 <div class="flex flex-wrap gap-2 mt-2">
+                  <button class="btn btn-ghost flex-1" id="switchExerciseBtn" onclick="switchExercise()">Switch Exercise</button>
                   <button class="btn btn-secondary flex-1" onclick="addCustomExercise()">Add Custom Exercise</button>
+                </div>
+                <div class="flex flex-wrap gap-2 mt-2">
                   <button class="btn btn-error flex-1" onclick="deleteCurrentExercise()">Delete Exercise</button>
                 </div>
               </div>
@@ -435,6 +438,9 @@
       loadLastSessionStats(exercise.name);
       loadSets(exercise);
       document.getElementById("restTimerEdit").value = exercise.restTime;
+      
+      // Load any saved data for this exercise
+      loadSavedExerciseData();
     }
 
     // Load the last two session stats for the given exercise.
@@ -638,6 +644,10 @@
     // Go to next exercise.
     function nextExercise() {
       if (!currentDay) return;
+      
+      // Save current exercise data before moving
+      saveCurrentExerciseData();
+      
       if (currentExerciseIndex < currentDay.exercises.length - 1) {
         currentExerciseIndex++;
         loadExercise();
@@ -792,6 +802,65 @@
       saveCompletedWorkout(completedWorkout);
       alert("Workout saved!");
       window.location.reload();
+    }
+
+    // Navigation between exercises
+    function previousExercise() {
+      if (!currentDay || !currentDay.exercises) return;
+      
+      // Save current exercise data before moving
+      saveCurrentExerciseData();
+      
+      // Move to previous exercise
+      currentExerciseIndex--;
+      if (currentExerciseIndex < 0) {
+        currentExerciseIndex = currentDay.exercises.length - 1;
+      }
+      
+      // Load the previous exercise
+      loadExercise();
+    }
+
+    // Save the current exercise's data
+    function saveCurrentExerciseData() {
+      const setsContainer = document.getElementById("setsContainer");
+      if (!setsContainer) return;
+      
+      const setEntries = setsContainer.querySelectorAll(".card");
+      if (!setEntries || setEntries.length === 0) return;
+      
+      // Collect the sets data for the current exercise
+      const setsData = Array.from(setEntries).map(entry => ({
+        actualReps: entry.querySelector(".actualReps").value,
+        weight: entry.querySelector(".weightInput").value,
+        felt: entry.querySelector(".feltSelect").value
+      }));
+      
+      // Store this data in localStorage for recovery
+      const tempData = {
+        exerciseIndex: currentExerciseIndex,
+        exerciseName: currentDay.exercises[currentExerciseIndex].name,
+        sets: setsData
+      };
+      localStorage.setItem('tempExerciseData', JSON.stringify(tempData));
+    }
+
+    // Load saved exercise data if it exists
+    function loadSavedExerciseData() {
+      const savedData = localStorage.getItem('tempExerciseData');
+      if (!savedData) return;
+      
+      const data = JSON.parse(savedData);
+      if (data.exerciseIndex === currentExerciseIndex) {
+        const setEntries = document.querySelectorAll("#setsContainer .card");
+        data.sets.forEach((setData, i) => {
+          if (setEntries[i]) {
+            setEntries[i].querySelector(".actualReps").value = setData.actualReps;
+            setEntries[i].querySelector(".weightInput").value = setData.weight;
+            setEntries[i].querySelector(".feltSelect").value = setData.felt;
+          }
+        });
+      }
     }
 
     // Initialization on page load.
