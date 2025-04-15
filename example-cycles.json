@@ -1,0 +1,86 @@
+{
+  "cycles": [
+    {
+      "id": "cycle1",
+      "cycleName": "Strength Phase 1",
+      "description": "Focus on building base strength",
+      "days": [
+        {
+          "name": "Push Day",
+          "exercises": [
+            {
+              "name": "Bench Press",
+              "sets": 3,
+              "minReps": 8,
+              "maxReps": 12,
+              "restSeconds": 90,
+              "notes": "Focus on form, keep shoulders back"
+            },
+            {
+              "name": "Overhead Press",
+              "sets": 3,
+              "minReps": 8,
+              "maxReps": 12,
+              "restSeconds": 90,
+              "notes": "Maintain core stability"
+            }
+          ]
+        },
+        {
+          "name": "Pull Day",
+          "exercises": [
+            {
+              "name": "Barbell Rows",
+              "sets": 3,
+              "minReps": 8,
+              "maxReps": 12,
+              "restSeconds": 90,
+              "notes": "Keep back straight"
+            },
+            {
+              "name": "Pull-ups",
+              "sets": 3,
+              "minReps": 5,
+              "maxReps": 8,
+              "restSeconds": 120,
+              "notes": "Use assistance if needed"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "cycle2",
+      "cycleName": "Hypertrophy Phase",
+      "description": "Focus on muscle growth",
+      "days": [
+        {
+          "name": "Upper Body",
+          "exercises": [
+            {
+              "name": "Incline Dumbbell Press",
+              "sets": 4,
+              "minReps": 12,
+              "maxReps": 15,
+              "restSeconds": 60,
+              "notes": "Control the negative"
+            }
+          ]
+        },
+        {
+          "name": "Lower Body",
+          "exercises": [
+            {
+              "name": "Squats",
+              "sets": 4,
+              "minReps": 12,
+              "maxReps": 15,
+              "restSeconds": 90,
+              "notes": "Keep knees in line with toes"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+} 
