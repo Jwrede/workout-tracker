@@ -119,12 +119,6 @@
       <div class="card-body">
         <h1 class="card-title text-2xl">Workout History</h1>
         
-        <!-- Import Button -->
-        <div class="mb-4">
-          <input type="file" id="cycleImport" accept=".json" class="file-input file-input-bordered file-input-sm w-full max-w-xs" />
-          <button onclick="importCycles()" class="btn btn-primary btn-sm ml-2">Import Cycles</button>
-        </div>
-        
         <!-- Filter Controls -->
         <div class="flex flex-wrap gap-4 mb-4">
           <div class="form-control">
@@ -278,9 +272,9 @@
               <thead>
                 <tr>
                   <th>Set</th>
-                  <th>Actual Reps</th>
-                  <th>Weight (kg)</th>
-                  <th>Effort</th>
+                  <th>Reps</th>
+                  <th>Weight</th>
+                  <th>Felt</th>
                   <th>Actions</th>
                 </tr>
               </thead>
@@ -288,12 +282,8 @@
                 ${details.actualReps.map((reps, i) => `
                   <tr>
                     <td>${i + 1}</td>
-                    <td>
-                      <input type="number" class="input input-bordered input-sm w-20 mb-1" value="${reps}" min="0">
-                    </td>
-                    <td>
-                      <input type="number" class="input input-bordered input-sm w-20" value="${details.weights?.[i] || ''}" min="0" step="0.5">
-                    </td>
+                    <td><input type="number" class="input input-bordered input-sm w-20" value="${reps}" min="0"></td>
+                    <td><input type="number" class="input input-bordered input-sm w-20" value="${details.weights?.[i] || ''}" min="0" step="0.5"></td>
                     <td>
                       <select class="select select-bordered select-sm">
                         <option value="Easy" ${details.felt?.[i] === 'Easy' ? 'selected' : ''}>Easy</option>
@@ -466,9 +456,9 @@
                 <thead>
                   <tr>
                     <th>Set</th>
-                    <th>Actual Reps</th>
-                    <th>Weight (kg)</th>
-                    <th>Effort</th>
+                    <th>Reps</th>
+                    <th>Weight</th>
+                    <th>Felt</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -574,81 +564,6 @@
       document.getElementById("startDate").addEventListener("change", filterWorkouts);
       document.getElementById("endDate").addEventListener("change", filterWorkouts);
     });
-
-    // Add this function for importing cycles
-    async function importCycles() {
-      const fileInput = document.getElementById('cycleImport');
-      const file = fileInput.files[0];
-      
-      if (!file) {
-        alert('Please select a JSON file to import');
-        return;
-      }
-      
-      try {
-        const text = await file.text();
-        const data = JSON.parse(text);
-        
-        // Validate the JSON structure
-        if (!data.cycles || !Array.isArray(data.cycles)) {
-          throw new Error('Invalid JSON structure. Must contain a "cycles" array.');
-        }
-        
-        // Validate each cycle
-        data.cycles.forEach(cycle => {
-          if (!cycle.id || !cycle.cycleName || !cycle.days || !Array.isArray(cycle.days)) {
-            throw new Error('Invalid cycle structure. Each cycle must have id, cycleName, and days array.');
-          }
-          
-          cycle.days.forEach(day => {
-            if (!day.name || !day.exercises || !Array.isArray(day.exercises)) {
-              throw new Error('Invalid day structure. Each day must have a name and exercises array.');
-            }
-            
-            day.exercises.forEach(exercise => {
-              if (!exercise.name || !exercise.sets || !exercise.minReps || !exercise.maxReps) {
-                throw new Error('Invalid exercise structure. Each exercise must have name, sets, minReps, and maxReps.');
-              }
-            });
-          });
-        });
-        
-        // Get existing cycles
-        const existingCycles = getWorkoutCycles();
-        
-        // Check for duplicate IDs
-        const duplicates = data.cycles.filter(newCycle => 
-          existingCycles.some(existingCycle => existingCycle.id === newCycle.id)
-        );
-        
-        if (duplicates.length > 0) {
-          const overwrite = confirm(`Found ${duplicates.length} cycles with existing IDs. Do you want to overwrite them?`);
-          if (!overwrite) return;
-          
-          // Remove duplicates from existing cycles
-          duplicates.forEach(duplicate => {
-            const index = existingCycles.findIndex(cycle => cycle.id === duplicate.id);
-            if (index !== -1) existingCycles.splice(index, 1);
-          });
-        }
-        
-        // Merge cycles
-        const mergedCycles = [...existingCycles, ...data.cycles];
-        
-        // Save to localStorage
-        localStorage.setItem('workoutCycles', JSON.stringify(mergedCycles));
-        
-        // Refresh filters
-        populateFilters();
-        filterWorkouts();
-        
-        alert('Cycles imported successfully!');
-        fileInput.value = ''; // Clear the file input
-        
-      } catch (error) {
-        alert(`Error importing cycles: ${error.message}`);
-      }
-    }
   </script>
 </body>
 </html>
