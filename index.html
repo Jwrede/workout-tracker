@@ -58,6 +58,32 @@
       margin: 0;
       font-weight: normal;
     }
+    /* Drag and drop styles */
+    .day-container {
+      cursor: move;
+      transition: transform 0.2s ease;
+    }
+    .day-container.dragging {
+      opacity: 0.5;
+      transform: scale(0.95);
+    }
+    .day-container.drag-over {
+      border-top: 2px solid #570df8;
+    }
+    .exercise-container {
+      cursor: move;
+      transition: transform 0.2s ease;
+    }
+    .exercise-container.dragging {
+      opacity: 0.5;
+      transform: scale(0.95);
+    }
+    .exercise-container.drag-over {
+      border-top: 2px solid #570df8;
+    }
+    .rotate-180 {
+      transform: rotate(180deg);
+    }
   </style>
 </head>
 <body class="min-h-screen bg-base-200">
@@ -116,7 +142,13 @@
         <div id="cycleListSection" class="mb-6">
           <h2 class="text-xl font-bold mb-4">Existing Cycles</h2>
           <div id="cycleList" class="space-y-4"></div>
-          <button class="btn btn-primary mt-4" onclick="newCycle()">New Cycle</button>
+          <div class="flex justify-center mt-4">
+            <button class="btn btn-circle btn-primary" onclick="newCycle()">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+              </svg>
+            </button>
+          </div>
         </div>
 
         <div class="divider"></div>
@@ -199,13 +231,55 @@
 
         item.appendChild(header);
 
+        // Action buttons container
+        const actionsDiv = document.createElement("div");
+        actionsDiv.className = "flex gap-2 mt-2";
+
         // Edit button
         const editBtn = document.createElement("button");
         editBtn.className = "btn btn-sm";
         editBtn.innerText = "Edit";
         editBtn.onclick = () => editCycle(cycle.id);
-        item.appendChild(editBtn);
+        actionsDiv.appendChild(editBtn);
 
+        // Export button
+        const exportBtn = document.createElement("button");
+        exportBtn.className = "btn btn-sm btn-primary";
+        exportBtn.innerText = "Export";
+        exportBtn.onclick = () => {
+          // Create a clean copy of the cycle without the active flag
+          const cycleToExport = {
+            ...cycle,
+            active: false
+          };
+          
+          // Create and trigger download
+          const dataStr = JSON.stringify(cycleToExport, null, 2);
+          const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+          const exportFileDefaultName = `${cycle.cycleName.replace(/\s+/g, '_')}.json`;
+          
+          const linkElement = document.createElement('a');
+          linkElement.setAttribute('href', dataUri);
+          linkElement.setAttribute('download', exportFileDefaultName);
+          linkElement.click();
+        };
+        actionsDiv.appendChild(exportBtn);
+
+        // Delete button
+        const deleteBtn = document.createElement("button");
+        deleteBtn.className = "btn btn-sm btn-error";
+        deleteBtn.innerText = "Delete";
+        deleteBtn.onclick = () => {
+          if (confirm(`Are you sure you want to delete the cycle "${cycle.cycleName}"?`)) {
+            let cycles = loadCycles();
+            cycles = cycles.filter(c => c.id !== cycle.id);
+            saveCycles(cycles);
+            refreshCycleList();
+          }
+        };
+        actionsDiv.appendChild(deleteBtn);
+
+        item.appendChild(actionsDiv);
         cycleListDiv.appendChild(item);
       });
     }
@@ -227,20 +301,366 @@
       const cycles = loadCycles();
       const cycle = cycles.find(c => c.id === id);
       if (!cycle) return;
+      
+      // Set the current cycle ID and update the editor
       currentCycleId = id;
       document.getElementById("editorCycleName").value = cycle.cycleName || "";
+      
       // Clear current editor days
       document.getElementById("editorDaysContainer").innerHTML = "";
       editorDayCount = 0;
+      
       // Load saved days (if any)
       if (cycle.days && Array.isArray(cycle.days)) {
         cycle.days.forEach(dayData => {
           addEditorDay(dayData);
         });
       }
+      
       document.getElementById("editorTitle").innerText = "Edit Cycle";
       document.getElementById("cycleEditorSection").style.display = "block";
       document.getElementById("cycleEditorSection").scrollIntoView({ behavior: "smooth" });
+    }
+
+    // Add a day to the cycle editor.
+    // If dayData is provided, pre-populate the day.
+    function addEditorDay(dayData = null) {
+      editorDayCount++;
+      const daysContainer = document.getElementById("editorDaysContainer");
+
+      const dayDiv = document.createElement("div");
+      dayDiv.className = "card bg-base-200 p-4 day-container";
+      dayDiv.dataset.dayIndex = editorDayCount;
+      
+      // Add drag and drop attributes
+      dayDiv.draggable = true;
+      dayDiv.addEventListener('dragstart', handleDragStart);
+      dayDiv.addEventListener('dragend', handleDragEnd);
+      dayDiv.addEventListener('dragover', handleDragOver);
+      dayDiv.addEventListener('drop', handleDrop);
+
+      // Day Header with editable title and remove button.
+      const dayHeader = document.createElement("div");
+      dayHeader.className = "flex justify-between items-center mb-4 day-header";
+      const dayTitle = document.createElement("h3");
+      dayTitle.className = "text-lg font-bold";
+      dayTitle.innerText = dayData ? dayData.name : `Day ${editorDayCount}`;
+      dayTitle.contentEditable = "true";
+      dayTitle.style.cursor = "text";
+      dayHeader.appendChild(dayTitle);
+
+      // Add collapse/expand button
+      const collapseBtn = document.createElement("button");
+      collapseBtn.className = "btn btn-ghost btn-sm collapse-btn";
+      collapseBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg>';
+      collapseBtn.onclick = function() {
+        const content = this.closest('.day-container').querySelector('.day-content');
+        content.classList.toggle('hidden');
+        this.querySelector('svg').classList.toggle('rotate-180');
+      };
+      dayHeader.appendChild(collapseBtn);
+
+      const removeDayBtn = document.createElement("button");
+      removeDayBtn.innerText = "Remove Day";
+      removeDayBtn.className = "btn btn-sm btn-error";
+      removeDayBtn.onclick = function() {
+        if (confirm("Are you sure you want to remove this day?")) {
+          dayDiv.remove();
+        }
+      };
+      dayHeader.appendChild(removeDayBtn);
+      dayDiv.appendChild(dayHeader);
+
+      // Create content container that will be collapsible
+      const contentDiv = document.createElement("div");
+      contentDiv.className = "day-content hidden"; // Start collapsed
+      dayDiv.appendChild(contentDiv);
+
+      // Input for number of rest days after this workout.
+      const restDaysLabel = document.createElement("label");
+      restDaysLabel.className = "label";
+      const restDaysSpan = document.createElement("span");
+      restDaysSpan.className = "label-text font-bold";
+      restDaysSpan.innerText = "Rest days after this workout:";
+      restDaysLabel.appendChild(restDaysSpan);
+      contentDiv.appendChild(restDaysLabel);
+      
+      const restDaysInput = document.createElement("input");
+      restDaysInput.type = "number";
+      restDaysInput.min = "0";
+      restDaysInput.className = "input input-bordered rest-days-input";
+      restDaysInput.value = dayData ? (dayData.restDaysAfter || 0) : 0;
+      contentDiv.appendChild(restDaysInput);
+
+      // Container for exercises
+      const exercisesContainer = document.createElement("div");
+      exercisesContainer.className = "exercises-container space-y-4 mt-4";
+      contentDiv.appendChild(exercisesContainer);
+
+      // Button to add an exercise for this day.
+      const addExerciseBtn = document.createElement("button");
+      addExerciseBtn.innerText = "Add Exercise";
+      addExerciseBtn.className = "btn btn-sm btn-primary mt-4";
+      addExerciseBtn.onclick = function() {
+        addEditorExercise(exercisesContainer);
+      };
+      contentDiv.appendChild(addExerciseBtn);
+
+      // If dayData exists, load each exercise.
+      if (dayData && dayData.exercises) {
+        dayData.exercises.forEach(exData => {
+          addEditorExercise(exercisesContainer, exData);
+        });
+      }
+
+      daysContainer.appendChild(dayDiv);
+    }
+
+    // Add an exercise to a given day (editor version).
+    // If exData is provided, pre-populate the exercise fields.
+    function addEditorExercise(container, exData = null) {
+      const exerciseDiv = document.createElement("div");
+      exerciseDiv.className = "card bg-base-100 p-4 exercise-container";
+      exerciseDiv.draggable = true;
+      exerciseDiv.addEventListener('dragstart', handleExerciseDragStart);
+      exerciseDiv.addEventListener('dragend', handleExerciseDragEnd);
+      exerciseDiv.addEventListener('dragover', handleExerciseDragOver);
+      exerciseDiv.addEventListener('drop', handleExerciseDrop);
+
+      // Exercise Header with collapse button
+      const exerciseHeader = document.createElement("div");
+      exerciseHeader.className = "flex justify-between items-center mb-4 exercise-header";
+      
+      // Exercise Name
+      const nameLabel = document.createElement("label");
+      nameLabel.className = "label";
+      const nameSpan = document.createElement("span");
+      nameSpan.className = "label-text font-bold";
+      nameSpan.innerText = "Exercise Name:";
+      nameLabel.appendChild(nameSpan);
+      exerciseHeader.appendChild(nameLabel);
+      
+      const nameInput = document.createElement("input");
+      nameInput.type = "text";
+      nameInput.className = "input input-bordered";
+      nameInput.placeholder = "e.g., Bench Press";
+      nameInput.value = exData ? exData.name : "";
+      exerciseHeader.appendChild(nameInput);
+
+      // Add collapse/expand button
+      const collapseBtn = document.createElement("button");
+      collapseBtn.className = "btn btn-ghost btn-sm collapse-btn";
+      collapseBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg>';
+      collapseBtn.onclick = function() {
+        const content = this.closest('.exercise-container').querySelector('.exercise-content');
+        content.classList.toggle('hidden');
+        this.querySelector('svg').classList.toggle('rotate-180');
+      };
+      exerciseHeader.appendChild(collapseBtn);
+
+      // Remove Exercise button
+      const removeExBtn = document.createElement("button");
+      removeExBtn.innerText = "Remove";
+      removeExBtn.className = "btn btn-sm btn-error";
+      removeExBtn.onclick = function() {
+        if (confirm("Remove this exercise?")) {
+          exerciseDiv.remove();
+        }
+      };
+      exerciseHeader.appendChild(removeExBtn);
+
+      exerciseDiv.appendChild(exerciseHeader);
+
+      // Create content container that will be collapsible
+      const contentDiv = document.createElement("div");
+      contentDiv.className = "exercise-content hidden"; // Start collapsed
+      exerciseDiv.appendChild(contentDiv);
+
+      // Planned Sets
+      const setsLabel = document.createElement("label");
+      setsLabel.className = "label mt-2";
+      const setsSpan = document.createElement("span");
+      setsSpan.className = "label-text font-bold";
+      setsSpan.innerText = "Planned Sets:";
+      setsLabel.appendChild(setsSpan);
+      contentDiv.appendChild(setsLabel);
+      
+      const setsInput = document.createElement("input");
+      setsInput.type = "number";
+      setsInput.min = 1;
+      setsInput.className = "input input-bordered setsInput";
+      setsInput.placeholder = "e.g., 3";
+      setsInput.value = exData ? exData.sets : "";
+      contentDiv.appendChild(setsInput);
+
+      // Rep Range (min and max)
+      const repRangeLabel = document.createElement("label");
+      repRangeLabel.className = "label mt-2";
+      const repRangeSpan = document.createElement("span");
+      repRangeSpan.className = "label-text font-bold";
+      repRangeSpan.innerText = "Rep Range (min - max):";
+      repRangeLabel.appendChild(repRangeSpan);
+      contentDiv.appendChild(repRangeLabel);
+      
+      const repRangeDiv = document.createElement("div");
+      repRangeDiv.className = "flex flex-col gap-2";
+      
+      const repMinInput = document.createElement("input");
+      repMinInput.type = "number";
+      repMinInput.min = 1;
+      repMinInput.className = "input input-bordered repMinInput flex-1";
+      repMinInput.placeholder = "Min";
+      repMinInput.value = exData && exData.repRange ? exData.repRange.min : "";
+      repRangeDiv.appendChild(repMinInput);
+      
+      const repMaxInput = document.createElement("input");
+      repMaxInput.type = "number";
+      repMaxInput.min = 1;
+      repMaxInput.className = "input input-bordered repMaxInput flex-1";
+      repMaxInput.placeholder = "Max";
+      repMaxInput.value = exData && exData.repRange ? exData.repRange.max : "";
+      repRangeDiv.appendChild(repMaxInput);
+      
+      contentDiv.appendChild(repRangeDiv);
+
+      // Planned Rest Time
+      const restTimeLabel = document.createElement("label");
+      restTimeLabel.className = "label mt-2";
+      const restTimeSpan = document.createElement("span");
+      restTimeSpan.className = "label-text font-bold";
+      restTimeSpan.innerText = "Rest Time (seconds):";
+      restTimeLabel.appendChild(restTimeSpan);
+      contentDiv.appendChild(restTimeLabel);
+      
+      const restTimeInput = document.createElement("input");
+      restTimeInput.type = "number";
+      restTimeInput.min = 0;
+      restTimeInput.className = "input input-bordered restTimeInput";
+      restTimeInput.placeholder = "e.g., 90";
+      restTimeInput.value = exData ? exData.restTime : "";
+      contentDiv.appendChild(restTimeInput);
+
+      // Targeted Body Parts (checkboxes)
+      const bodyPartLabel = document.createElement("label");
+      bodyPartLabel.className = "label mt-2";
+      const bodyPartSpan = document.createElement("span");
+      bodyPartSpan.className = "label-text font-bold";
+      bodyPartSpan.innerText = "Targeted Body Parts:";
+      bodyPartLabel.appendChild(bodyPartSpan);
+      contentDiv.appendChild(bodyPartLabel);
+      
+      const checkboxDiv = document.createElement("div");
+      checkboxDiv.className = "checkbox-group";
+      bodyParts.forEach(part => {
+        const checkLabel = document.createElement("label");
+        const checkbox = document.createElement("input");
+        checkbox.type = "checkbox";
+        checkbox.className = "checkbox checkbox-sm";
+        checkbox.value = part;
+        if (exData && exData.targetedBodyParts && exData.targetedBodyParts.includes(part)) {
+          checkbox.checked = true;
+        }
+        checkLabel.appendChild(checkbox);
+        checkLabel.appendChild(document.createTextNode(part));
+        checkboxDiv.appendChild(checkLabel);
+      });
+      contentDiv.appendChild(checkboxDiv);
+
+      container.appendChild(exerciseDiv);
+    }
+
+    // Exercise drag and drop handlers
+    function handleExerciseDragStart(e) {
+      this.classList.add('dragging');
+      e.dataTransfer.setData('text/plain', this.dataset.exerciseIndex);
+    }
+
+    function handleExerciseDragEnd(e) {
+      this.classList.remove('dragging');
+    }
+
+    function handleExerciseDragOver(e) {
+      e.preventDefault();
+      const dragging = document.querySelector('.exercise-container.dragging');
+      if (dragging === this) return;
+      
+      // Remove drag-over class from all exercise containers first
+      document.querySelectorAll('.exercise-container').forEach(container => {
+        container.classList.remove('drag-over');
+      });
+      
+      const rect = this.getBoundingClientRect();
+      const midY = rect.top + rect.height / 2;
+      
+      if (e.clientY < midY) {
+        this.classList.add('drag-over');
+      }
+    }
+
+    function handleExerciseDrop(e) {
+      e.preventDefault();
+      this.classList.remove('drag-over');
+      
+      const dragging = document.querySelector('.exercise-container.dragging');
+      if (dragging === this) return;
+      
+      const exercisesContainer = this.closest('.exercises-container');
+      const exercises = Array.from(exercisesContainer.children);
+      const draggingIndex = exercises.indexOf(dragging);
+      const dropIndex = exercises.indexOf(this);
+      
+      if (e.clientY < this.getBoundingClientRect().top + this.getBoundingClientRect().height / 2) {
+        exercisesContainer.insertBefore(dragging, this);
+      } else {
+        exercisesContainer.insertBefore(dragging, this.nextSibling);
+      }
+    }
+
+    // Drag and drop handlers
+    function handleDragStart(e) {
+      this.classList.add('dragging');
+      e.dataTransfer.setData('text/plain', this.dataset.dayIndex);
+    }
+
+    function handleDragEnd(e) {
+      this.classList.remove('dragging');
+    }
+
+    function handleDragOver(e) {
+      e.preventDefault();
+      const dragging = document.querySelector('.dragging');
+      if (dragging === this) return;
+      
+      // Remove drag-over class from all day containers first
+      document.querySelectorAll('.day-container').forEach(container => {
+        container.classList.remove('drag-over');
+      });
+      
+      const rect = this.getBoundingClientRect();
+      const midY = rect.top + rect.height / 2;
+      
+      if (e.clientY < midY) {
+        this.classList.add('drag-over');
+      }
+    }
+
+    function handleDrop(e) {
+      e.preventDefault();
+      this.classList.remove('drag-over');
+      
+      const dragging = document.querySelector('.dragging');
+      if (dragging === this) return;
+      
+      const daysContainer = document.getElementById('editorDaysContainer');
+      const days = Array.from(daysContainer.children);
+      const draggingIndex = days.indexOf(dragging);
+      const dropIndex = days.indexOf(this);
+      
+      if (e.clientY < this.getBoundingClientRect().top + this.getBoundingClientRect().height / 2) {
+        daysContainer.insertBefore(dragging, this);
+      } else {
+        daysContainer.insertBefore(dragging, this.nextSibling);
+      }
     }
 
     // Save the cycle (update or add new) and update localStorage
@@ -249,6 +669,7 @@
       const daysContainer = document.getElementById("editorDaysContainer");
       const dayEls = daysContainer.querySelectorAll(".day-container");
       const days = [];
+      
       dayEls.forEach(dayEl => {
         const dayHeader = dayEl.querySelector(".day-header h3");
         const dayName = dayHeader.innerText.trim();
@@ -256,17 +677,20 @@
         const restDaysAfter = parseInt(restDaysInput.value) || 0;
         const exercises = [];
         const exerciseEls = dayEl.querySelectorAll(".exercise-container");
+        
         exerciseEls.forEach(exEl => {
           const exName = exEl.querySelector('input[type="text"]').value;
           const setsVal = parseInt(exEl.querySelector('.setsInput').value) || 0;
           const repMin = parseInt(exEl.querySelector('.repMinInput').value) || 0;
           const repMax = parseInt(exEl.querySelector('.repMaxInput').value) || 0;
           const restTime = parseInt(exEl.querySelector('.restTimeInput').value) || 0;
+          
           // Gather targeted body parts
           const targetedBodyParts = [];
           exEl.querySelectorAll(".checkbox-group input[type='checkbox']").forEach(cb => {
             if (cb.checked) targetedBodyParts.push(cb.value);
           });
+          
           exercises.push({
             name: exName,
             sets: setsVal,
@@ -275,6 +699,7 @@
             targetedBodyParts: targetedBodyParts
           });
         });
+        
         days.push({
           name: dayName,
           restDaysAfter: restDaysAfter,
@@ -283,14 +708,19 @@
       });
 
       const cycles = loadCycles();
-      // If editing an existing cycle, update it; otherwise create new cycle object.
+      
       if (currentCycleId) {
+        // Update existing cycle
         const index = cycles.findIndex(c => c.id === currentCycleId);
         if (index !== -1) {
-          cycles[index].cycleName = cycleName;
-          cycles[index].days = days;
+          cycles[index] = {
+            ...cycles[index],
+            cycleName: cycleName,
+            days: days
+          };
         }
       } else {
+        // Create new cycle
         const newCycleObj = {
           id: Date.now().toString(),
           cycleName: cycleName,
@@ -299,6 +729,7 @@
         };
         cycles.push(newCycleObj);
       }
+      
       saveCycles(cycles);
       refreshCycleList();
       cancelEdit();
@@ -329,204 +760,6 @@
       refreshCycleList();
     }
 
-    // ----- Editor: Add Day & Exercise functions -----
-
-    // Add a day to the cycle editor.
-    // If dayData is provided, pre-populate the day.
-    function addEditorDay(dayData = null) {
-      editorDayCount++;
-      const daysContainer = document.getElementById("editorDaysContainer");
-
-      const dayDiv = document.createElement("div");
-      dayDiv.className = "card bg-base-200 p-4 day-container";
-      dayDiv.dataset.dayIndex = editorDayCount;
-
-      // Day Header with editable title and remove button.
-      const dayHeader = document.createElement("div");
-      dayHeader.className = "flex justify-between items-center mb-4 day-header";
-      const dayTitle = document.createElement("h3");
-      dayTitle.className = "text-lg font-bold";
-      dayTitle.innerText = dayData ? dayData.name : `Day ${editorDayCount}`;
-      dayTitle.contentEditable = "true";
-      dayTitle.style.cursor = "text";
-      dayHeader.appendChild(dayTitle);
-      const removeDayBtn = document.createElement("button");
-      removeDayBtn.innerText = "Remove Day";
-      removeDayBtn.className = "btn btn-sm btn-error";
-      removeDayBtn.onclick = function() {
-        if (confirm("Are you sure you want to remove this day?")) {
-          dayDiv.remove();
-        }
-      };
-      dayHeader.appendChild(removeDayBtn);
-      dayDiv.appendChild(dayHeader);
-
-      // Input for number of rest days after this workout.
-      const restDaysLabel = document.createElement("label");
-      restDaysLabel.className = "label";
-      const restDaysSpan = document.createElement("span");
-      restDaysSpan.className = "label-text font-bold";
-      restDaysSpan.innerText = "Rest days after this workout:";
-      restDaysLabel.appendChild(restDaysSpan);
-      dayDiv.appendChild(restDaysLabel);
-      
-      const restDaysInput = document.createElement("input");
-      restDaysInput.type = "number";
-      restDaysInput.min = "0";
-      restDaysInput.className = "input input-bordered rest-days-input";
-      restDaysInput.value = dayData ? (dayData.restDaysAfter || 0) : 0;
-      dayDiv.appendChild(restDaysInput);
-
-      // Container for exercises
-      const exercisesContainer = document.createElement("div");
-      exercisesContainer.className = "exercises-container space-y-4 mt-4";
-      dayDiv.appendChild(exercisesContainer);
-
-      // Button to add an exercise for this day.
-      const addExerciseBtn = document.createElement("button");
-      addExerciseBtn.innerText = "Add Exercise";
-      addExerciseBtn.className = "btn btn-sm btn-primary mt-4";
-      addExerciseBtn.onclick = function() {
-        addEditorExercise(exercisesContainer);
-      };
-      dayDiv.appendChild(addExerciseBtn);
-
-      // If dayData exists, load each exercise.
-      if (dayData && dayData.exercises) {
-        dayData.exercises.forEach(exData => {
-          addEditorExercise(exercisesContainer, exData);
-        });
-      }
-
-      daysContainer.appendChild(dayDiv);
-    }
-
-    // Add an exercise to a given day (editor version).
-    // If exData is provided, pre-populate the exercise fields.
-    function addEditorExercise(container, exData = null) {
-      const exerciseDiv = document.createElement("div");
-      exerciseDiv.className = "card bg-base-100 p-4 exercise-container";
-
-      // Exercise Name
-      const nameLabel = document.createElement("label");
-      nameLabel.className = "label";
-      const nameSpan = document.createElement("span");
-      nameSpan.className = "label-text font-bold";
-      nameSpan.innerText = "Exercise Name:";
-      nameLabel.appendChild(nameSpan);
-      exerciseDiv.appendChild(nameLabel);
-      
-      const nameInput = document.createElement("input");
-      nameInput.type = "text";
-      nameInput.className = "input input-bordered";
-      nameInput.placeholder = "e.g., Bench Press";
-      nameInput.value = exData ? exData.name : "";
-      exerciseDiv.appendChild(nameInput);
-
-      // Planned Sets
-      const setsLabel = document.createElement("label");
-      setsLabel.className = "label mt-2";
-      const setsSpan = document.createElement("span");
-      setsSpan.className = "label-text font-bold";
-      setsSpan.innerText = "Planned Sets:";
-      setsLabel.appendChild(setsSpan);
-      exerciseDiv.appendChild(setsLabel);
-      
-      const setsInput = document.createElement("input");
-      setsInput.type = "number";
-      setsInput.min = 1;
-      setsInput.className = "input input-bordered setsInput";
-      setsInput.placeholder = "e.g., 3";
-      setsInput.value = exData ? exData.sets : "";
-      exerciseDiv.appendChild(setsInput);
-
-      // Rep Range (min and max)
-      const repRangeLabel = document.createElement("label");
-      repRangeLabel.className = "label mt-2";
-      const repRangeSpan = document.createElement("span");
-      repRangeSpan.className = "label-text font-bold";
-      repRangeSpan.innerText = "Rep Range (min - max):";
-      repRangeLabel.appendChild(repRangeSpan);
-      exerciseDiv.appendChild(repRangeLabel);
-      
-      const repRangeDiv = document.createElement("div");
-      repRangeDiv.className = "flex flex-col gap-2";
-      
-      const repMinInput = document.createElement("input");
-      repMinInput.type = "number";
-      repMinInput.min = 1;
-      repMinInput.className = "input input-bordered repMinInput flex-1";
-      repMinInput.placeholder = "Min";
-      repMinInput.value = exData && exData.repRange ? exData.repRange.min : "";
-      repRangeDiv.appendChild(repMinInput);
-      
-      const repMaxInput = document.createElement("input");
-      repMaxInput.type = "number";
-      repMaxInput.min = 1;
-      repMaxInput.className = "input input-bordered repMaxInput flex-1";
-      repMaxInput.placeholder = "Max";
-      repMaxInput.value = exData && exData.repRange ? exData.repRange.max : "";
-      repRangeDiv.appendChild(repMaxInput);
-      
-      exerciseDiv.appendChild(repRangeDiv);
-
-      // Planned Rest Time
-      const restTimeLabel = document.createElement("label");
-      restTimeLabel.className = "label mt-2";
-      const restTimeSpan = document.createElement("span");
-      restTimeSpan.className = "label-text font-bold";
-      restTimeSpan.innerText = "Rest Time (seconds):";
-      restTimeLabel.appendChild(restTimeSpan);
-      exerciseDiv.appendChild(restTimeLabel);
-      
-      const restTimeInput = document.createElement("input");
-      restTimeInput.type = "number";
-      restTimeInput.min = 0;
-      restTimeInput.className = "input input-bordered restTimeInput";
-      restTimeInput.placeholder = "e.g., 90";
-      restTimeInput.value = exData ? exData.restTime : "";
-      exerciseDiv.appendChild(restTimeInput);
-
-      // Targeted Body Parts (checkboxes)
-      const bodyPartLabel = document.createElement("label");
-      bodyPartLabel.className = "label mt-2";
-      const bodyPartSpan = document.createElement("span");
-      bodyPartSpan.className = "label-text font-bold";
-      bodyPartSpan.innerText = "Targeted Body Parts:";
-      bodyPartLabel.appendChild(bodyPartSpan);
-      exerciseDiv.appendChild(bodyPartLabel);
-      
-      const checkboxDiv = document.createElement("div");
-      checkboxDiv.className = "checkbox-group";
-      bodyParts.forEach(part => {
-        const checkLabel = document.createElement("label");
-        const checkbox = document.createElement("input");
-        checkbox.type = "checkbox";
-        checkbox.className = "checkbox checkbox-sm";
-        checkbox.value = part;
-        if (exData && exData.targetedBodyParts && exData.targetedBodyParts.includes(part)) {
-          checkbox.checked = true;
-        }
-        checkLabel.appendChild(checkbox);
-        checkLabel.appendChild(document.createTextNode(part));
-        checkboxDiv.appendChild(checkLabel);
-      });
-      exerciseDiv.appendChild(checkboxDiv);
-
-      // Remove Exercise button
-      const removeExBtn = document.createElement("button");
-      removeExBtn.innerText = "Remove Exercise";
-      removeExBtn.className = "btn btn-sm btn-error mt-4";
-      removeExBtn.onclick = function() {
-        if (confirm("Remove this exercise?")) {
-          exerciseDiv.remove();
-        }
-      };
-      exerciseDiv.appendChild(removeExBtn);
-
-      container.appendChild(exerciseDiv);
-    }
-
     // Import workout cycles from a JSON file
     function importWorkoutCycles() {
       const fileInput = document.getElementById('importCycles');
@@ -538,8 +771,22 @@
       const reader = new FileReader();
       reader.onload = function(e) {
         try {
-          const cycles = JSON.parse(e.target.result);
-          localStorage.setItem('workoutCycles', JSON.stringify(cycles));
+          const importedCycles = JSON.parse(e.target.result);
+          const existingCycles = loadCycles();
+          
+          // Ensure each imported cycle has a unique ID
+          importedCycles.forEach(cycle => {
+            // If the cycle doesn't have an ID or if the ID already exists, generate a new one
+            if (!cycle.id || existingCycles.some(c => c.id === cycle.id)) {
+              cycle.id = Date.now().toString() + Math.random().toString(36).substr(2, 9);
+            }
+            // Ensure the cycle is not active by default
+            cycle.active = false;
+          });
+          
+          // Merge imported cycles with existing ones
+          const updatedCycles = [...existingCycles, ...importedCycles];
+          localStorage.setItem('workoutCycles', JSON.stringify(updatedCycles));
           alert('Workout cycles imported successfully!');
           refreshCycleList();
         } catch (err) {

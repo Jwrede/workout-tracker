@@ -103,10 +103,10 @@
     <div class="navbar-end hidden lg:flex">
       <ul class="menu menu-horizontal px-1">
         <li><a href="index.html">Home</a></li>
-        <li><a href="workout-mode.html">Workout Mode</a></li>
+      <li><a href="workout-mode.html">Workout Mode</a></li>
         <li><a href="workout-history.html" class="active">History</a></li>
         <li><a href="statistics.html">Statistics</a></li>
-      </ul>
+    </ul>
       <button id="installButton" class="btn btn-ghost btn-sm normal-case ml-2" style="display: none;">
         Install App
       </button>
@@ -118,6 +118,13 @@
     <div class="card bg-base-100 shadow-xl">
       <div class="card-body">
         <h1 class="card-title text-2xl">Workout History</h1>
+        
+        <!-- Import/Export Controls -->
+        <div class="flex gap-2 mb-4">
+          <button class="btn btn-sm" onclick="exportWorkoutHistory()">Export History</button>
+          <label class="btn btn-sm" for="importFile">Import History</label>
+          <input type="file" id="importFile" class="hidden" accept=".json" onchange="importWorkoutHistory(event)">
+        </div>
         
         <!-- Filter Controls -->
         <div class="flex flex-wrap gap-4 mb-4">
@@ -158,7 +165,6 @@
                 <th>Date</th>
                 <th>Cycle</th>
                 <th>Day</th>
-                <th>Exercises</th>
                 <th>Duration</th>
                 <th>Actions</th>
               </tr>
@@ -366,7 +372,6 @@
           <td>${workout.date}</td>
           <td>${cycle ? cycle.cycleName : "Unknown Cycle"}</td>
           <td>${day ? day.name : "Unknown Day"}</td>
-          <td>${Object.keys(workout.details || {}).join(", ")}</td>
           <td>${formatDuration(workout.workoutDuration)}</td>
           <td>
             <div class="flex gap-2">
@@ -564,6 +569,71 @@
       document.getElementById("startDate").addEventListener("change", filterWorkouts);
       document.getElementById("endDate").addEventListener("change", filterWorkouts);
     });
+
+    // Export workout history to a JSON file
+    function exportWorkoutHistory() {
+      const workouts = getCompletedWorkouts();
+      const data = JSON.stringify(workouts, null, 2);
+      const blob = new Blob([data], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `workout-history-${new Date().toISOString().split('T')[0]}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
+
+    // Import workout history from a JSON file
+    function importWorkoutHistory(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        try {
+          const importedWorkouts = JSON.parse(e.target.result);
+          
+          // Validate the imported data
+          if (!Array.isArray(importedWorkouts)) {
+            throw new Error('Invalid data format');
+          }
+          
+          // Check if the data contains valid workout objects
+          const isValid = importedWorkouts.every(workout => {
+            return workout.date && workout.cycleId && workout.dayIndex !== undefined;
+          });
+          
+          if (!isValid) {
+            throw new Error('Invalid workout data format');
+          }
+
+          if (confirm(`Import ${importedWorkouts.length} workout(s)? This will add to your existing history.`)) {
+            const currentWorkouts = getCompletedWorkouts();
+            const updatedWorkouts = [...currentWorkouts];
+            
+            // Add imported workouts, avoiding duplicates based on date
+            importedWorkouts.forEach(imported => {
+              const exists = updatedWorkouts.some(w => w.date === imported.date);
+              if (!exists) {
+                updatedWorkouts.push(imported);
+              }
+            });
+            
+            saveWorkouts(updatedWorkouts);
+            filterWorkouts();
+            alert('Workout history imported successfully!');
+          }
+        } catch (error) {
+          alert('Error importing workout history: ' + error.message);
+        }
+      };
+      reader.readAsText(file);
+      
+      // Reset the file input
+      event.target.value = '';
+    }
   </script>
 </body>
 </html>
