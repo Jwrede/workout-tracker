@@ -107,7 +107,8 @@
         <!-- Overlay shown when no workout is due -->
         <div id="notDueOverlay" class="fixed top-[64px] inset-x-0 bottom-0 bg-black bg-opacity-50 flex items-center justify-center z-40 hidden">
           <div class="bg-base-100 p-6 rounded-lg shadow-xl text-center">
-            <p class="text-xl">No workout due today.<br>Please come back later.</p>
+            <p class="text-xl mb-4">No workout due today.<br>Please come back later.</p>
+            <button id="startAnywayBtn" class="btn btn-primary">Start Workout Anyway</button>
           </div>
         </div>
         
@@ -223,6 +224,46 @@
             <span class="label-text">Rest Time (seconds):</span>
           </label>
           <input type="number" id="addExerciseRestTime" min="0" value="90" class="input input-bordered" required>
+        </div>
+        
+        <div class="form-control">
+          <label class="label">
+            <span class="label-text">Targeted Body Parts:</span>
+          </label>
+          <div class="grid grid-cols-2 gap-2">
+            <label class="label cursor-pointer justify-start gap-2">
+              <input type="checkbox" class="checkbox checkbox-primary" value="chest">
+              <span class="label-text">Chest</span>
+            </label>
+            <label class="label cursor-pointer justify-start gap-2">
+              <input type="checkbox" class="checkbox checkbox-primary" value="back">
+              <span class="label-text">Back</span>
+            </label>
+            <label class="label cursor-pointer justify-start gap-2">
+              <input type="checkbox" class="checkbox checkbox-primary" value="shoulders">
+              <span class="label-text">Shoulders</span>
+            </label>
+            <label class="label cursor-pointer justify-start gap-2">
+              <input type="checkbox" class="checkbox checkbox-primary" value="biceps">
+              <span class="label-text">Biceps</span>
+            </label>
+            <label class="label cursor-pointer justify-start gap-2">
+              <input type="checkbox" class="checkbox checkbox-primary" value="triceps">
+              <span class="label-text">Triceps</span>
+            </label>
+            <label class="label cursor-pointer justify-start gap-2">
+              <input type="checkbox" class="checkbox checkbox-primary" value="legs">
+              <span class="label-text">Legs</span>
+            </label>
+            <label class="label cursor-pointer justify-start gap-2">
+              <input type="checkbox" class="checkbox checkbox-primary" value="core">
+              <span class="label-text">Core</span>
+            </label>
+            <label class="label cursor-pointer justify-start gap-2">
+              <input type="checkbox" class="checkbox checkbox-primary" value="cardio">
+              <span class="label-text">Cardio</span>
+            </label>
+          </div>
         </div>
         
         <div class="modal-action">
@@ -361,6 +402,18 @@
         currentExerciseIndex = 0;
         loadExercise();
       }
+    }
+
+    // Start workout anyway function
+    function startWorkoutAnyway() {
+      const overlay = document.getElementById("notDueOverlay");
+      overlay.classList.add("hidden");
+      document.getElementById("workoutContent").classList.remove("disabled");
+      
+      // Use the first day of the cycle
+      currentDay = activeCycle.days[0];
+      currentExerciseIndex = 0;
+      loadExercise();
     }
 
     // Load and display the current exercise.
@@ -839,13 +892,17 @@
         const repMax = parseInt(document.getElementById("addExerciseRepMax").value) || 0;
         const restTime = parseInt(document.getElementById("addExerciseRestTime").value) || 0;
         
+        // Get selected body parts
+        const selectedBodyParts = Array.from(document.querySelectorAll('#addExerciseForm input[type="checkbox"]:checked'))
+          .map(checkbox => checkbox.value);
+        
         // Create the new exercise object
         const newExercise = {
           name: newName,
           sets: plannedSets,
           repRange: { min: repMin, max: repMax },
           restTime: restTime,
-          targetedBodyParts: []
+          targetedBodyParts: selectedBodyParts
         };
         
         // Insert the new exercise after the current one
@@ -858,6 +915,9 @@
         currentExerciseIndex++;
         loadExercise();
       };
+
+      // Add event listener for the start anyway button
+      document.getElementById("startAnywayBtn").onclick = startWorkoutAnyway;
     });
   </script>
 </body>
